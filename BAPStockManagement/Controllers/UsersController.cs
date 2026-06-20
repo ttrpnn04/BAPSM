@@ -99,7 +99,7 @@ public class UsersController : Controller
         }
 
         var roles = await _userManager.GetRolesAsync(user);
-        var currentRole = roles.FirstOrDefault() ?? AppRoles.Staff;
+        var currentRole = roles.FirstOrDefault() ?? AppRoles.Admin;
         var isSuperAdmin = roles.Contains(AppRoles.SuperAdmin);
 
         ViewBag.Roles = isSuperAdmin

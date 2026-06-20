@@ -24,5 +24,5 @@ public class CreateUserViewModel
 
     [Required(ErrorMessage = "กรุณาเลือกบทบาท")]
     [Display(Name = "บทบาท")]
-    public string Role { get; set; } = AppRoles.Staff;
+    public string Role { get; set; } = AppRoles.Admin;
 }

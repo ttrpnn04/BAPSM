@@ -12,7 +12,7 @@ public class EditUserViewModel
 
     [Required(ErrorMessage = "กรุณาเลือกบทบาท")]
     [Display(Name = "บทบาท")]
-    public string Role { get; set; } = AppRoles.Staff;
+    public string Role { get; set; } = AppRoles.Admin;
 
     [Display(Name = "ปิดการใช้งาน")]
     public bool IsLocked { get; set; }

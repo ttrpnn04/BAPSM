@@ -185,7 +185,7 @@ else
                                 }
                             </td>
                             <td class="text-end">
-                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
                                 {
                                     if (item.PrimaryVariantId.HasValue)
                                     {

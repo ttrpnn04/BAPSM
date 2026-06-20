@@ -8,7 +8,7 @@
         <h1>ประวัติรายการสต็อก</h1>
         <p class="subtitle">รายการรับเข้าและจ่ายออกย้อนหลัง</p>
     </div>
-    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+    @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
     {
         <div class="page-actions">
             <a asp-action="Create" class="btn btn-primary">

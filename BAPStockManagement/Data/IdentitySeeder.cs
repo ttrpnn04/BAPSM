@@ -23,6 +23,8 @@ public static class IdentitySeeder
             }
         }
 
+        await MigrateObsoleteRolesAsync(userManager, roleManager, logger);
+
         if (await userManager.Users.AnyAsync())
         {
             return;
@@ -51,7 +53,46 @@ public static class IdentitySeeder
             return;
         }
 
-        await userManager.AddToRoleAsync(user, AppRoles.SuperAdmin);
-        logger.LogInformation("สร้าง SuperAdmin เริ่มต้น ({Email}) สำเร็จ", options.Email);
+        await userManager.AddToRoleAsync(user, AppRoles.Admin);
+        logger.LogInformation("สร้าง Admin เริ่มต้น ({Email}) สำเร็จ", options.Email);
+    }
+
+    private static async Task MigrateObsoleteRolesAsync(
+        UserManager<IdentityUser> userManager,
+        RoleManager<IdentityRole> roleManager,
+        ILogger logger)
+    {
+        var obsoleteRoles = new[] { "Staff", "Viewer" };
+
+        foreach (var obsoleteRole in obsoleteRoles)
+        {
+            if (!await roleManager.RoleExistsAsync(obsoleteRole))
+            {
+                continue;
+            }
+
+            foreach (var user in await userManager.GetUsersInRoleAsync(obsoleteRole))
+            {
+                var roles = await userManager.GetRolesAsync(user);
+                if (!roles.Contains(AppRoles.Admin) && !roles.Contains(AppRoles.SuperAdmin))
+                {
+                    await userManager.AddToRoleAsync(user, AppRoles.Admin);
+                    logger.LogInformation(
+                        "ย้ายผู้ใช้ {Email} จาก {OldRole} เป็น {NewRole}",
+                        user.Email ?? user.UserName,
+                        obsoleteRole,
+                        AppRoles.Admin);
+                }
+
+                await userManager.RemoveFromRoleAsync(user, obsoleteRole);
+            }
+
+            var role = await roleManager.FindByNameAsync(obsoleteRole);
+            if (role != null)
+            {
+                await roleManager.DeleteAsync(role);
+                logger.LogInformation("ลบ role {Role} ที่ไม่ใช้แล้ว", obsoleteRole);
+            }
+        }
     }
 }

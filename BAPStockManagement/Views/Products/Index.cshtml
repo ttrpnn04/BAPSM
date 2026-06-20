@@ -113,7 +113,7 @@ else
                             {
                                 <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
                             }
-                            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+                            @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
                             {
                                 <a asp-controller="Transactions" asp-action="Create" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i></a>
                             }

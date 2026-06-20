@@ -1,6 +1,6 @@
 ﻿@{
     ViewData["Title"] = "หน้าแรก";
-    var canEdit = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff");
+    var canEdit = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
     var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
     var name = User.Identity?.Name?.Split('@')[0] ?? "ผู้ใช้";
 }
