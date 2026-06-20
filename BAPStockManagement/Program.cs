@@ -39,6 +39,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+    await ProductVariantSeeder.SeedAsync(scope.ServiceProvider);
 }
 
 if (!app.Environment.IsDevelopment())

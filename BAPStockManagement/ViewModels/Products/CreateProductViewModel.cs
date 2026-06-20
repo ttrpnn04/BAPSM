@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using BAPStockManagement.Constants;
 
 namespace BAPStockManagement.ViewModels.Products;
 
@@ -29,5 +30,5 @@ public class CreateProductViewModel
 
     [Required(ErrorMessage = "กรุณาระบุสี/รุ่นอย่างน้อย 1 รายการ")]
     [Display(Name = "สี/รุ่น (หนึ่งบรรทัดต่อหนึ่งรายการ)")]
-    public string VariantsText { get; set; } = string.Empty;
+    public string VariantsText { get; set; } = string.Join(Environment.NewLine, ProductVariantDefaults.ColorNames);
 }

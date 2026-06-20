@@ -5,7 +5,11 @@ namespace BAPStockManagement.ViewModels.Stock;
 public class CreateTransactionViewModel
 {
     [Required(ErrorMessage = "กรุณาเลือกสินค้า")]
-    [Display(Name = "สินค้า / สี-รุ่น")]
+    [Display(Name = "สินค้า")]
+    public int? ProductId { get; set; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "กรุณาเลือกสี/รุ่น")]
+    [Display(Name = "สี/รุ่น")]
     public int VariantId { get; set; }
 
     [Required(ErrorMessage = "กรุณาเลือกประเภท")]

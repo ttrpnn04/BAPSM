@@ -1,7 +1,9 @@
 using BAPStockManagement.Constants;
+using BAPStockManagement.Data;
 using BAPStockManagement.Models;
 using BAPStockManagement.ViewModels.Stock;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +14,12 @@ namespace BAPStockManagement.Controllers;
 public class TransactionsController : Controller
 {
     private readonly BAPStockContext _context;
+    private readonly UserManager<IdentityUser> _userManager;
 
-    public TransactionsController(BAPStockContext context)
+    public TransactionsController(BAPStockContext context, UserManager<IdentityUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
     public async Task<IActionResult> Index(DateOnly? fromDate, DateOnly? toDate, int? transactionTypeId, string? search)
@@ -104,10 +108,21 @@ public class TransactionsController : Controller
             selectedVariantId = await EnsureDefaultVariantForProductAsync(productId.Value);
         }
 
+        var selectedProductId = productId;
+        if (!selectedProductId.HasValue && selectedVariantId.HasValue)
+        {
+            selectedProductId = await _context.ProductVariants
+                .AsNoTracking()
+                .Where(v => v.VariantId == selectedVariantId.Value)
+                .Select(v => (int?)v.ProductId)
+                .FirstOrDefaultAsync();
+        }
+
         await PopulateCreateLookupsAsync(selectedVariantId);
 
         return View(new CreateTransactionViewModel
         {
+            ProductId = selectedProductId,
             VariantId = selectedVariantId ?? 0
         });
     }
@@ -136,6 +151,12 @@ public class TransactionsController : Controller
         if (variant == null)
         {
             ModelState.AddModelError(nameof(model.VariantId), "ไม่พบสินค้าที่เลือก");
+            return View(model);
+        }
+
+        if (model.ProductId.HasValue && variant.ProductId != model.ProductId.Value)
+        {
+            ModelState.AddModelError(nameof(model.VariantId), "สี/รุ่นไม่ตรงกับสินค้าที่เลือก");
             return View(model);
         }
 
@@ -171,7 +192,7 @@ public class TransactionsController : Controller
             QtyCases = model.QtyCases,
             RefNo = string.IsNullOrWhiteSpace(model.RefNo) ? null : model.RefNo.Trim(),
             Note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim(),
-            CreatedBy = User.Identity?.Name
+            CreatedBy = _userManager.GetUserId(User)
         };
 
         _context.StockTransactions.Add(transaction);
@@ -184,7 +205,10 @@ public class TransactionsController : Controller
     private async Task<int?> EnsureDefaultVariantForProductAsync(int productId)
     {
         var existingVariant = await _context.ProductVariants
-            .Where(v => v.ProductId == productId && v.IsActive)
+            .Where(v =>
+                v.ProductId == productId &&
+                v.IsActive &&
+                v.VariantName != ProductVariantDefaults.StandardVariantName)
             .OrderBy(v => v.SortOrder)
             .Select(v => (int?)v.VariantId)
             .FirstOrDefaultAsync();
@@ -194,32 +218,50 @@ public class TransactionsController : Controller
         }
 
         var product = await _context.Products
+            .Include(p => p.ProductVariants)
+                .ThenInclude(v => v.StockBalance)
             .FirstOrDefaultAsync(p => p.ProductId == productId && p.IsActive);
         if (product == null)
         {
             return null;
         }
 
-        var defaultVariant = new ProductVariant
-        {
-            ProductId = productId,
-            VariantName = "มาตรฐาน",
-            SortOrder = 1,
-            IsActive = true,
-            StockBalance = new StockBalance
-            {
-                QtyPieces = 0,
-                QtyCases = 0
-            }
-        };
-
-        _context.ProductVariants.Add(defaultVariant);
+        await ProductVariantSeeder.EnsureDefaultColorsAsync(product);
         await _context.SaveChangesAsync();
-        return defaultVariant.VariantId;
+
+        return product.ProductVariants
+            .Where(v => v.IsActive && v.VariantName != ProductVariantDefaults.StandardVariantName)
+            .OrderBy(v => v.SortOrder)
+            .Select(v => (int?)v.VariantId)
+            .FirstOrDefault();
     }
 
     private async Task PopulateCreateLookupsAsync(int? selectedVariantId = null)
     {
+        var products = await _context.Products
+            .AsNoTracking()
+            .Include(p => p.Category)
+            .Where(p => p.IsActive && p.ProductVariants.Any(v => v.IsActive))
+            .OrderBy(p => p.Category.SortOrder)
+            .ThenBy(p => p.Category.CategoryName)
+            .ThenBy(p => p.ProductName)
+            .Select(p => new
+            {
+                p.ProductId,
+                Label = p.Category.CategoryName + " | " + p.Sku + " - " + p.ProductName
+            })
+            .ToListAsync();
+
+        var selectedProductId = selectedVariantId.HasValue && selectedVariantId.Value > 0
+            ? await _context.ProductVariants
+                .AsNoTracking()
+                .Where(v => v.VariantId == selectedVariantId.Value)
+                .Select(v => (int?)v.ProductId)
+                .FirstOrDefaultAsync()
+            : null;
+
+        ViewBag.Products = new SelectList(products, "ProductId", "Label", selectedProductId);
+
         var variants = await _context.ProductVariants
             .AsNoTracking()
             .Include(v => v.Product)
@@ -232,12 +274,13 @@ public class TransactionsController : Controller
             .Select(v => new
             {
                 v.VariantId,
-                Label = v.Product.Category.CategoryName + " | " + v.Product.Sku + " - " +
-                        v.Product.ProductName + " (" + v.VariantName + ")"
+                v.ProductId,
+                Label = v.VariantName
             })
             .ToListAsync();
 
-        ViewBag.Variants = new SelectList(variants, "VariantId", "Label", selectedVariantId);
+        ViewBag.Variants = variants;
+        ViewBag.SelectedVariantId = selectedVariantId;
 
         var types = await _context.TransactionTypes
             .Where(t => t.IsActive)

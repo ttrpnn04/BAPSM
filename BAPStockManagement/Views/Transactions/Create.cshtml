@@ -17,9 +17,24 @@
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2" role="alert"></div>
 
                 <div class="mb-3">
-                    <label asp-for="VariantId" class="form-label"></label>
-                    <select asp-for="VariantId" asp-items="ViewBag.Variants" class="form-select">
+                    <label asp-for="ProductId" class="form-label"></label>
+                    <select asp-for="ProductId" asp-items="ViewBag.Products" class="form-select" id="productSelect">
                         <option value="">-- เลือกสินค้า --</option>
+                    </select>
+                    <span asp-validation-for="ProductId" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="VariantId" class="form-label"></label>
+                    <select asp-for="VariantId" class="form-select" id="variantSelect">
+                        <option value="">-- เลือกสี/รุ่น --</option>
+                        @foreach (var variant in ViewBag.Variants)
+                        {
+                            var isSelected = variant.VariantId == ViewBag.SelectedVariantId;
+                            <option value="@variant.VariantId" data-product-id="@variant.ProductId" selected="@isSelected">
+                                @variant.Label
+                            </option>
+                        }
                     </select>
                     <span asp-validation-for="VariantId" class="text-danger small"></span>
                 </div>
@@ -76,4 +91,33 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const productSelect = document.getElementById('productSelect');
+            const variantSelect = document.getElementById('variantSelect');
+
+            if (!productSelect || !variantSelect) {
+                return;
+            }
+
+            const options = Array.from(variantSelect.options);
+
+            const filterVariants = () => {
+                const productId = productSelect.value;
+
+                options.forEach(option => {
+                    const optionProductId = option.dataset.productId;
+                    option.hidden = !!optionProductId && optionProductId !== productId;
+                });
+
+                const selectedOption = variantSelect.selectedOptions[0];
+                if (selectedOption?.hidden) {
+                    variantSelect.value = '';
+                }
+            };
+
+            productSelect.addEventListener('change', filterVariants);
+            filterVariants();
+        })();
+    </script>
 }

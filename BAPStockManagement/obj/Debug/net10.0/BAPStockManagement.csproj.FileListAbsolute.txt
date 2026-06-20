@@ -303,7 +303,6 @@ C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\appse
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\import_preview.json
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.staticwebassets.runtime.json
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.staticwebassets.endpoints.json
-C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.exe
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.deps.json
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.runtimeconfig.json
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.dll
@@ -598,3 +597,13 @@ C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\refin
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\BAPStockManagement.pdb
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\BAPStockManagement.genruntimeconfig.cache
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\ref\BAPStockManagement.dll
+C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\bin\Debug\net10.0\BAPStockManagement.exe
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\appsettings.Development.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\appsettings.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\import_preview.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.staticwebassets.runtime.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.staticwebassets.endpoints.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.deps.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.runtimeconfig.json
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.dll
+C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.pdb
