@@ -87,6 +87,30 @@ public class TransactionsController : Controller
             })
             .ToListAsync();
 
+        var createdByIds = items
+            .Select(i => i.CreatedBy)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+
+        if (createdByIds.Count > 0)
+        {
+            var userEmails = await _context.Users
+                .AsNoTracking()
+                .Where(u => createdByIds.Contains(u.Id))
+                .ToDictionaryAsync(
+                    u => u.Id,
+                    u => u.Email ?? u.UserName ?? u.Id);
+
+            foreach (var item in items)
+            {
+                if (item.CreatedBy != null && userEmails.TryGetValue(item.CreatedBy, out var email))
+                {
+                    item.CreatedBy = email;
+                }
+            }
+        }
+
         return View(new TransactionIndexViewModel
         {
             FromDate = from,

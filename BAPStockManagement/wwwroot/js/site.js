@@ -5,6 +5,29 @@
   var sidebar = document.getElementById('sidebar');
   var overlay = document.getElementById('sidebarOverlay');
   var toggle  = document.getElementById('sidebarToggle');
+  var collapseToggle = document.getElementById('sidebarCollapseToggle');
+  var collapsedStorageKey = 'bap-stock-sidebar-collapsed';
+
+  function setSidebarCollapsed(collapsed) {
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+
+    if (collapseToggle) {
+      collapseToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      collapseToggle.setAttribute('aria-label', collapsed ? 'ขยายเมนู' : 'หุบเมนู');
+    }
+
+    try {
+      window.localStorage.setItem(collapsedStorageKey, collapsed ? '1' : '0');
+    } catch (_) {
+      // Ignore storage failures; the toggle still works for the current page.
+    }
+  }
+
+  try {
+    setSidebarCollapsed(window.localStorage.getItem(collapsedStorageKey) === '1');
+  } catch (_) {
+    setSidebarCollapsed(false);
+  }
 
   function openSidebar() {
     sidebar && sidebar.classList.add('is-open');
@@ -20,6 +43,9 @@
 
   toggle  && toggle.addEventListener('click', openSidebar);
   overlay && overlay.addEventListener('click', closeSidebar);
+  collapseToggle && collapseToggle.addEventListener('click', function () {
+    setSidebarCollapsed(!document.body.classList.contains('sidebar-collapsed'));
+  });
 
   /* Close sidebar on nav link click (mobile) */
   sidebar && sidebar.querySelectorAll('.sb-link').forEach(function (link) {
