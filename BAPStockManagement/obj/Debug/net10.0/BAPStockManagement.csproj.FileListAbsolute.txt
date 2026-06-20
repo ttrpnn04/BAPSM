@@ -285,7 +285,16 @@ C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compr
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\v0zgfp0y55-{0}-87fc7y1x7t-87fc7y1x7t.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\yfc7ypekbg-{0}-mlv21k5csn-mlv21k5csn.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\BAPStockManagement.sourcelink.json
-C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-ly7lji0szd-ly7lji0szd.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-mbjzxy99mq-mbjzxy99mq.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\59cemaz2lc-{0}-3cg7e59642-3cg7e59642.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\i2lpin8fri-{0}-3cg7e59642-3cg7e59642.gz
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\import_preview.json
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\ClosedXML.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\ClosedXML.Parser.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\DocumentFormat.OpenXml.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\DocumentFormat.OpenXml.Framework.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\ExcelNumberFormat.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\RBush.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\SixLabors.Fonts.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\bin\Debug\net10.0\System.IO.Packaging.dll
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-u3g3rcqu21-u3g3rcqu21.gz

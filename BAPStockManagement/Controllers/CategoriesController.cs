@@ -21,6 +21,7 @@ public class CategoriesController : Controller
     {
         var items = await _context.Categories
             .AsNoTracking()
+            .Where(c => c.IsActive)
             .Select(c => new CategoryListItemViewModel
             {
                 CategoryId = c.CategoryId,

@@ -15,7 +15,6 @@
         var initial = email.Length > 0 ? email[0].ToString().ToUpper() : "?";
         var isSignedIn = SignInManager.IsSignedIn(User);
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
-        var canEdit = User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff");
     }
 
     <div class="app-shell">
@@ -41,25 +40,16 @@
                     <a class="sb-link" href="/Transactions/Index" data-match="/transactions/index">
                         <i class="bi bi-arrow-left-right"></i><span>ประวัติรายการ</span>
                     </a>
-                    @if (canEdit)
-                    {
-                        <a class="sb-link" href="/Transactions/Create" data-match="/transactions/create">
-                            <i class="bi bi-plus-circle"></i><span>บันทึกรายการ</span>
-                        </a>
-                    }
                     <a class="sb-link" href="/Stock/MonthlyReport" data-match="/stock/monthlyreport">
                         <i class="bi bi-bar-chart-line"></i><span>รายงานรายเดือน</span>
-                    </a>
-
-                    <div class="sb-section-label">จัดการ</div>
-
-                    <a class="sb-link" href="/Products/Index" data-match="/products">
-                        <i class="bi bi-tag"></i><span>สินค้า</span>
                     </a>
                     @if (isAdmin)
                     {
                         <a class="sb-link" href="/Categories/Index" data-match="/categories">
                             <i class="bi bi-folder2"></i><span>หมวดหมู่</span>
+                        </a>
+                        <a class="sb-link" href="/Import/Index" data-match="/import">
+                            <i class="bi bi-file-earmark-arrow-up"></i><span>Import Excel</span>
                         </a>
                     }
                     @if (User.IsInRole("SuperAdmin"))

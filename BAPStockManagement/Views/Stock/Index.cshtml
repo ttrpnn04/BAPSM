@@ -6,13 +6,13 @@
 <div class="page-header">
     <div>
         <h1>สต็อกสินค้า</h1>
-        <p class="subtitle">ยอดคงเหลือปัจจุบัน แยกตามสี/รุ่น</p>
+        <p class="subtitle">ยอดคงเหลือปัจจุบัน (1 รุ่นต่อ 1 แถว พร้อมรายละเอียดสีในแถวเดียว)</p>
     </div>
     <div class="page-actions">
-        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
         {
-            <a asp-controller="Transactions" asp-action="Create" class="btn btn-primary">
-                <i class="bi bi-plus-lg me-1"></i>บันทึกรายการ
+            <a asp-controller="Products" asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-box-seam me-1"></i>เพิ่มสินค้าใหม่
             </a>
         }
         <a asp-action="MonthlyReport" class="btn btn-outline-primary">
@@ -82,6 +82,34 @@
                    placeholder="SKU, ชื่อสินค้า, สี/รุ่น" />
         </div>
         <div class="col-md-4">
+            <label class="form-label">ต่อหน้า</label>
+            <select name="pageSize" class="form-select d-inline-block w-auto me-2">
+                @if (Model.PageSize == 10)
+                {
+                    <option value="10" selected>10</option>
+                }
+                else
+                {
+                    <option value="10">10</option>
+                }
+                @if (Model.PageSize == 20)
+                {
+                    <option value="20" selected>20</option>
+                }
+                else
+                {
+                    <option value="20">20</option>
+                }
+                @if (Model.PageSize == 50)
+                {
+                    <option value="50" selected>50</option>
+                }
+                else
+                {
+                    <option value="50">50</option>
+                }
+            </select>
+            <input type="hidden" name="page" value="1" />
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-search me-1"></i>ค้นหา
             </button>
@@ -114,6 +142,7 @@ else
                         <th class="text-end">ลัง</th>
                         <th>หน่วย</th>
                         <th>อัปเดตล่าสุด</th>
+                        <th class="text-end">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -124,7 +153,24 @@ else
                             <td><span class="text-muted small">@item.CategoryName</span></td>
                             <td><code>@item.Sku</code></td>
                             <td class="fw-medium">@item.ProductName</td>
-                            <td>@item.VariantName</td>
+                            <td>
+                                @if (item.Colors.Any())
+                                {
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var color in item.Colors)
+                                        {
+                                            <span class="color-chip">
+                                                @color.VariantName
+                                                <small class="ms-1">(@color.QtyPieces.ToString("N0"))</small>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
                             <td class="text-end fw-semibold">@item.QtyPieces.ToString("N0")</td>
                             <td class="text-end fw-semibold">@item.QtyCases.ToString("N0")</td>
                             <td><span class="badge bg-light text-dark border">@item.Unit</span></td>
@@ -138,10 +184,58 @@ else
                                     <span>-</span>
                                 }
                             </td>
+                            <td class="text-end">
+                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+                                {
+                                    if (item.PrimaryVariantId.HasValue)
+                                    {
+                                        <a asp-controller="Transactions" asp-action="Create" asp-route-variantId="@item.PrimaryVariantId.Value"
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-plus-circle me-1"></i>บันทึกรายการ
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <a asp-controller="Transactions" asp-action="Create" asp-route-productId="@item.ProductId"
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-plus-circle me-1"></i>บันทึกรายการ
+                                        </a>
+                                    }
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="small text-muted">
+            ทั้งหมด @Model.TotalItems รายการ | หน้า @Model.Page / @Model.TotalPages
+        </div>
+        <nav aria-label="pagination">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(Model.HasPreviousPage ? "" : "disabled")">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-category="@Model.CategoryFilter"
+                       asp-route-search="@Model.Search"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@(Model.Page - 1)">ก่อนหน้า</a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">@Model.Page / @Model.TotalPages</span>
+                </li>
+                <li class="page-item @(Model.HasNextPage ? "" : "disabled")">
+                    <a class="page-link"
+                       asp-action="Index"
+                       asp-route-category="@Model.CategoryFilter"
+                       asp-route-search="@Model.Search"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@(Model.Page + 1)">ถัดไป</a>
+                </li>
+            </ul>
+        </nav>
     </div>
 }

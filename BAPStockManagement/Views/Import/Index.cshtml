@@ -1,0 +1,132 @@
+@model BAPStockManagement.ViewModels.Import.ExcelImportViewModel
+@{
+    ViewData["Title"] = "Import Excel";
+}
+
+<div class="page-header">
+    <div>
+        <h1>นำเข้าข้อมูลจาก Excel</h1>
+        <p class="subtitle">นำเข้าข้อมูลสินค้าและสต็อกเข้า database แบบครั้งเดียว</p>
+    </div>
+</div>
+
+<div class="form-card mb-4">
+    <form asp-action="Index" method="post" enctype="multipart/form-data" class="row g-3">
+        @Html.AntiForgeryToken()
+        <div class="col-12">
+            <label asp-for="ExcelFile" class="form-label">ไฟล์ Excel (.xlsx)</label>
+            <input asp-for="ExcelFile" type="file" class="form-control" accept=".xlsx" />
+            <span asp-validation-for="ExcelFile" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="CategoryName" class="form-label">กำหนดหมวดหมู่ตายตัว (ไม่กรอก = แยกอัตโนมัติตามรหัส SKU)</label>
+            <input asp-for="CategoryName" class="form-control" placeholder="เว้นว่างเพื่อให้ระบบจัดหมวดตาม BLB/BL/BLC/BL-BR" />
+        </div>
+
+        <div class="col-md-6 d-flex align-items-end">
+            <div class="form-check">
+                <input asp-for="IncludeZeroStockProducts" class="form-check-input" />
+                <label asp-for="IncludeZeroStockProducts" class="form-check-label">
+                    นำเข้าสินค้าที่สต็อกเป็น 0 เข้า master ด้วย
+                </label>
+            </div>
+        </div>
+
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-upload"></i>เริ่มนำเข้า
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-3 small text-muted">
+        ระบบจะป้องกันนำเข้าซ้ำโดยอิง hash ของไฟล์ (RefNo อัตโนมัติ)
+    </div>
+</div>
+
+@if (Model.HasResult)
+{
+    <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") mb-4">
+        @Model.ResultMessage
+        @if (!string.IsNullOrWhiteSpace(Model.ImportRef))
+        {
+            <span class="ms-2">Ref: <code>@Model.ImportRef</code></span>
+        }
+    </div>
+}
+
+@if (Model.HasResult && Model.IsSuccess)
+{
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card stat-primary">
+                <div>
+                    <div class="stat-label">แถวที่อ่านได้</div>
+                    <div class="stat-value">@Model.ParsedRows</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-file-earmark-text"></i></div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card stat-success">
+                <div>
+                    <div class="stat-label">สินค้าใน master</div>
+                    <div class="stat-value">@Model.ImportedProducts</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card stat-info">
+                <div>
+                    <div class="stat-label">รายการรับเข้า</div>
+                    <div class="stat-value">@Model.ImportedTransactions</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-arrow-down-circle"></i></div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card stat-warning">
+                <div>
+                    <div class="stat-label">ยอดชิ้นรวม</div>
+                    <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-calculator"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <tbody>
+                    <tr>
+                        <th class="w-25">หมวดหมู่ที่ใช้</th>
+                        <td>@string.Join(", ", Model.CategoryNames)</td>
+                    </tr>
+                    <tr>
+                        <th>สินค้าใหม่ที่สร้าง</th>
+                        <td>@Model.CreatedProducts</td>
+                    </tr>
+                    <tr>
+                        <th>สี/รุ่นใหม่ที่สร้าง</th>
+                        <td>@Model.CreatedVariants</td>
+                    </tr>
+                    <tr>
+                        <th>สินค้าไม่มีสต็อกที่ถูกข้าม transaction</th>
+                        <td>@Model.SkippedNoStockProducts</td>
+                    </tr>
+                    <tr>
+                        <th>คอลัมน์สีที่ระบบอ่านได้</th>
+                        <td>@string.Join(", ", Model.ColorHeaders)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -714,6 +714,18 @@ code {
   line-height: 1.45;
 }
 
+.color-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #f4f4f5;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+
 .ql-primary .ql-icon { background: var(--primary-soft); color: var(--primary); }
 .ql-success .ql-icon { background: var(--success-soft); color: var(--success); }
 .ql-info    .ql-icon { background: var(--info-soft);    color: var(--info); }

@@ -46,14 +46,6 @@
         </a>
     </div>
 
-    <div class="col-sm-6 col-xl-4">
-        <a asp-controller="Products" asp-action="Index" class="quick-link-card ql-secondary">
-            <div class="ql-icon"><i class="bi bi-tag"></i></div>
-            <div class="ql-title">จัดการสินค้า</div>
-            <p class="ql-desc">เพิ่ม แก้ไข SKU และสี/รุ่น</p>
-        </a>
-    </div>
-
     @if (isAdmin)
     {
         <div class="col-sm-6 col-xl-4">
@@ -61,6 +53,13 @@
                 <div class="ql-icon"><i class="bi bi-folder2"></i></div>
                 <div class="ql-title">หมวดหมู่</div>
                 <p class="ql-desc">จัดการหมวดหมู่สินค้า</p>
+            </a>
+        </div>
+        <div class="col-sm-6 col-xl-4">
+            <a asp-controller="Import" asp-action="Index" class="quick-link-card ql-secondary">
+                <div class="ql-icon"><i class="bi bi-file-earmark-arrow-up"></i></div>
+                <div class="ql-title">Import Excel</div>
+                <p class="ql-desc">นำเข้าข้อมูลจริงจากไฟล์ .xlsx</p>
             </a>
         </div>
     }

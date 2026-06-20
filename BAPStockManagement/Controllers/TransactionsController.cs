@@ -96,13 +96,19 @@ public class TransactionsController : Controller
 
     [Authorize(Roles = AppRoles.StockEdit)]
     [HttpGet]
-    public async Task<IActionResult> Create(int? variantId)
+    public async Task<IActionResult> Create(int? variantId, int? productId)
     {
-        await PopulateCreateLookupsAsync();
+        var selectedVariantId = variantId;
+        if (!selectedVariantId.HasValue && productId.HasValue)
+        {
+            selectedVariantId = await EnsureDefaultVariantForProductAsync(productId.Value);
+        }
+
+        await PopulateCreateLookupsAsync(selectedVariantId);
 
         return View(new CreateTransactionViewModel
         {
-            VariantId = variantId ?? 0
+            VariantId = selectedVariantId ?? 0
         });
     }
 
@@ -111,7 +117,7 @@ public class TransactionsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateTransactionViewModel model)
     {
-        await PopulateCreateLookupsAsync();
+        await PopulateCreateLookupsAsync(model.VariantId);
 
         if (model.QtyPieces == 0 && model.QtyCases == 0)
         {
@@ -175,7 +181,44 @@ public class TransactionsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task PopulateCreateLookupsAsync()
+    private async Task<int?> EnsureDefaultVariantForProductAsync(int productId)
+    {
+        var existingVariant = await _context.ProductVariants
+            .Where(v => v.ProductId == productId && v.IsActive)
+            .OrderBy(v => v.SortOrder)
+            .Select(v => (int?)v.VariantId)
+            .FirstOrDefaultAsync();
+        if (existingVariant.HasValue)
+        {
+            return existingVariant;
+        }
+
+        var product = await _context.Products
+            .FirstOrDefaultAsync(p => p.ProductId == productId && p.IsActive);
+        if (product == null)
+        {
+            return null;
+        }
+
+        var defaultVariant = new ProductVariant
+        {
+            ProductId = productId,
+            VariantName = "มาตรฐาน",
+            SortOrder = 1,
+            IsActive = true,
+            StockBalance = new StockBalance
+            {
+                QtyPieces = 0,
+                QtyCases = 0
+            }
+        };
+
+        _context.ProductVariants.Add(defaultVariant);
+        await _context.SaveChangesAsync();
+        return defaultVariant.VariantId;
+    }
+
+    private async Task PopulateCreateLookupsAsync(int? selectedVariantId = null)
     {
         var variants = await _context.ProductVariants
             .AsNoTracking()
@@ -194,7 +237,7 @@ public class TransactionsController : Controller
             })
             .ToListAsync();
 
-        ViewBag.Variants = new SelectList(variants, "VariantId", "Label");
+        ViewBag.Variants = new SelectList(variants, "VariantId", "Label", selectedVariantId);
 
         var types = await _context.TransactionTypes
             .Where(t => t.IsActive)
