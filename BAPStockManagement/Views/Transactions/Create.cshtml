@@ -1,0 +1,64 @@
+@model BAPStockManagement.ViewModels.Stock.CreateTransactionViewModel
+@{
+    ViewData["Title"] = "บันทึกรายการสต็อก";
+}
+
+<h1 class="h3 mb-4">บันทึกรายการสต็อก</h1>
+
+<form asp-action="Create" method="post" class="col-lg-7">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="VariantId" class="form-label"></label>
+        <select asp-for="VariantId" asp-items="ViewBag.Variants" class="form-select">
+            <option value="">-- เลือกสินค้า --</option>
+        </select>
+        <span asp-validation-for="VariantId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="TransactionTypeId" class="form-label"></label>
+        <select asp-for="TransactionTypeId" asp-items="ViewBag.TransactionTypes" class="form-select">
+            <option value="">-- เลือกประเภท --</option>
+        </select>
+        <span asp-validation-for="TransactionTypeId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="TxnDate" class="form-label"></label>
+        <input asp-for="TxnDate" class="form-control" type="date" />
+        <span asp-validation-for="TxnDate" class="text-danger"></span>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="QtyPieces" class="form-label"></label>
+            <input asp-for="QtyPieces" class="form-control" type="number" min="0" />
+            <span asp-validation-for="QtyPieces" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="QtyCases" class="form-label"></label>
+            <input asp-for="QtyCases" class="form-control" type="number" min="0" />
+            <span asp-validation-for="QtyCases" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="RefNo" class="form-label"></label>
+        <input asp-for="RefNo" class="form-control" placeholder="เช่น PO-001, INV-123" />
+        <span asp-validation-for="RefNo" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Note" class="form-label"></label>
+        <textarea asp-for="Note" class="form-control" rows="2"></textarea>
+        <span asp-validation-for="Note" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึก</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

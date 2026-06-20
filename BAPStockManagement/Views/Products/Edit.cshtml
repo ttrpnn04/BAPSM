@@ -1,0 +1,126 @@
+@model BAPStockManagement.ViewModels.Products.EditProductViewModel
+@{
+    ViewData["Title"] = "แก้ไขสินค้า";
+}
+
+<h1 class="h3 mb-4">แก้ไขสินค้า</h1>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="Edit" method="post" class="col-lg-7 mb-5">
+    <input type="hidden" asp-for="ProductId" />
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="CategoryId" class="form-label"></label>
+        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select"></select>
+        <span asp-validation-for="CategoryId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Sku" class="form-label"></label>
+        <input asp-for="Sku" class="form-control" />
+        <span asp-validation-for="Sku" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ProductName" class="form-label"></label>
+        <input asp-for="ProductName" class="form-control" />
+        <span asp-validation-for="ProductName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Unit" class="form-label"></label>
+        <input asp-for="Unit" class="form-control" />
+        <span asp-validation-for="Unit" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Note" class="form-label"></label>
+        <textarea asp-for="Note" class="form-control" rows="2"></textarea>
+        <span asp-validation-for="Note" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3 form-check">
+        <input asp-for="IsActive" class="form-check-input" />
+        <label asp-for="IsActive" class="form-check-label"></label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึก</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">กลับ</a>
+</form>
+
+<h2 class="h5 mb-3">สี/รุ่น (@Model.Variants.Count รายการ)</h2>
+
+<div class="table-responsive mb-4">
+    <table class="table table-sm table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>สี/รุ่น</th>
+                <th class="text-end">ชิ้น</th>
+                <th class="text-end">ลัง</th>
+                <th>สถานะ</th>
+                <th class="text-end">จัดการ</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var variant in Model.Variants)
+            {
+                <tr class="@(!variant.IsActive ? "table-secondary" : "")">
+                    <td>@variant.VariantName</td>
+                    <td class="text-end">@variant.QtyPieces.ToString("N0")</td>
+                    <td class="text-end">@variant.QtyCases.ToString("N0")</td>
+                    <td>
+                        @if (variant.IsActive)
+                        {
+                            <span class="badge bg-success">ใช้งาน</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">ปิด</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <a asp-controller="Transactions" asp-action="Create" asp-route-variantId="@variant.VariantId"
+                           class="btn btn-sm btn-outline-success">บันทึกสต็อก</a>
+                        <form asp-action="ToggleVariant" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="variantId" value="@variant.VariantId" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                @(variant.IsActive ? "ปิด" : "เปิด")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<form asp-action="AddVariant" method="post" class="row g-2 col-lg-7">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="productId" value="@Model.ProductId" />
+    <div class="col-md-8">
+        <input type="text" name="newVariantName" class="form-control" placeholder="ชื่อสี/รุ่นใหม่" />
+    </div>
+    <div class="col-md-4">
+        <button type="submit" class="btn btn-outline-primary">+ เพิ่มสี/รุ่น</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

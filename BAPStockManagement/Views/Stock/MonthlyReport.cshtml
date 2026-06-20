@@ -1,0 +1,116 @@
+@model BAPStockManagement.ViewModels.Stock.MonthlyReportViewModel
+@{
+    ViewData["Title"] = "รายงานสรุปรายเดือน";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">รายงานสรุปรายเดือน</h1>
+</div>
+
+<form asp-action="MonthlyReport" method="get" class="row g-2 mb-4">
+    <div class="col-md-2">
+        <label class="form-label small text-muted">ปี</label>
+        <input type="number" name="year" value="@Model.Year" class="form-control" min="2020" max="2099" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small text-muted">เดือน</label>
+        <select name="month" class="form-select">
+            @for (var m = 1; m <= 12; m++)
+            {
+                if (Model.Month == m)
+                {
+                    <option value="@m" selected>@m</option>
+                }
+                else
+                {
+                    <option value="@m">@m</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small text-muted">หมวดหมู่</label>
+        <select name="category" class="form-select">
+            <option value="">-- ทุกหมวดหมู่ --</option>
+            @foreach (var cat in Model.Categories)
+            {
+                if (Model.CategoryFilter == cat)
+                {
+                    <option value="@cat" selected>@cat</option>
+                }
+                else
+                {
+                    <option value="@cat">@cat</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-3 d-flex align-items-end gap-2">
+        <button type="submit" class="btn btn-primary">ดูรายงาน</button>
+        <a asp-action="MonthlyReport" class="btn btn-outline-secondary">ล้าง</a>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 bg-success-subtle">
+            <div class="card-body py-3">
+                <div class="text-muted small">รับเข้า (@Model.MonthLabel)</div>
+                <div class="fs-4 fw-semibold text-success">+@Model.TotalIn.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 bg-danger-subtle">
+            <div class="card-body py-3">
+                <div class="text-muted small">จ่ายออก (@Model.MonthLabel)</div>
+                <div class="fs-4 fw-semibold text-danger">-@Model.TotalOut.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 bg-light">
+            <div class="card-body py-3">
+                <div class="text-muted small">สุทธิ (@Model.MonthLabel)</div>
+                <div class="fs-4 fw-semibold">@Model.TotalNet.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.Items.Any())
+{
+    <div class="alert alert-info">ไม่มีข้อมูลในเดือน @Model.MonthLabel</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>หมวดหมู่</th>
+                    <th>SKU</th>
+                    <th>ชื่อสินค้า</th>
+                    <th>สี/รุ่น</th>
+                    <th class="text-end text-success">รับเข้า</th>
+                    <th class="text-end text-danger">จ่ายออก</th>
+                    <th class="text-end">สุทธิ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td>@item.CategoryName</td>
+                        <td><code>@item.Sku</code></td>
+                        <td>@item.ProductName</td>
+                        <td>@item.VariantName</td>
+                        <td class="text-end text-success">@(item.QtyIn?.ToString("N0") ?? "0")</td>
+                        <td class="text-end text-danger">@(item.QtyOut?.ToString("N0") ?? "0")</td>
+                        <td class="text-end fw-semibold">@(item.NetChange?.ToString("N0") ?? "0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,26 @@
+﻿@{
+    ViewData["Title"] = "หน้าแรก";
+}
+
+<div class="text-center py-4">
+    <h1 class="display-5">BAP Stock Management</h1>
+    <p class="lead text-muted">ระบบจัดการสต็อกสินค้า</p>
+    <div class="mt-4 d-flex gap-2 justify-content-center flex-wrap">
+        <a asp-controller="Stock" asp-action="Index" class="btn btn-primary btn-lg">ดูสต็อกสินค้า</a>
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            <a asp-controller="Transactions" asp-action="Create" class="btn btn-success btn-lg">บันทึกรายการ</a>
+        }
+        <a asp-controller="Transactions" asp-action="Index" class="btn btn-outline-primary btn-lg">ประวัติรายการ</a>
+        <a asp-controller="Stock" asp-action="MonthlyReport" class="btn btn-outline-secondary btn-lg">รายงานรายเดือน</a>
+        <a asp-controller="Products" asp-action="Index" class="btn btn-outline-secondary btn-lg">จัดการสินค้า</a>
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+        {
+            <a asp-controller="Categories" asp-action="Index" class="btn btn-outline-secondary btn-lg">หมวดหมู่</a>
+        }
+        @if (User.IsInRole("SuperAdmin"))
+        {
+            <a asp-controller="Users" asp-action="Index" class="btn btn-outline-secondary btn-lg">จัดการผู้ใช้</a>
+        }
+    </div>
+</div>

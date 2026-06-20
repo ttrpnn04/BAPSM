@@ -1,0 +1,41 @@
+@model BAPStockManagement.ViewModels.Categories.CategoryFormViewModel
+@{
+    ViewData["Title"] = "แก้ไขหมวดหมู่";
+}
+
+<h1 class="h3 mb-4">แก้ไขหมวดหมู่</h1>
+
+<form asp-action="Edit" method="post" class="col-md-6">
+    <input type="hidden" asp-for="CategoryId" />
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="CategoryName" class="form-label"></label>
+        <input asp-for="CategoryName" class="form-control" />
+        <span asp-validation-for="CategoryName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="VariantLabel" class="form-label"></label>
+        <input asp-for="VariantLabel" class="form-control" />
+        <span asp-validation-for="VariantLabel" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="SortOrder" class="form-label"></label>
+        <input asp-for="SortOrder" class="form-control" type="number" />
+        <span asp-validation-for="SortOrder" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3 form-check">
+        <input asp-for="IsActive" class="form-check-input" />
+        <label asp-for="IsActive" class="form-check-label"></label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึก</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

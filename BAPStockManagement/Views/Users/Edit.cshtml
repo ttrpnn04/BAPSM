@@ -1,0 +1,49 @@
+@model BAPStockManagement.ViewModels.Users.EditUserViewModel
+@{
+    ViewData["Title"] = "แก้ไขผู้ใช้";
+}
+
+<h1 class="h3 mb-4">แก้ไขผู้ใช้</h1>
+
+<form asp-action="Edit" method="post" class="col-md-6">
+    <input type="hidden" asp-for="Id" />
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" readonly />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Role" class="form-label"></label>
+        <select asp-for="Role" asp-items="ViewBag.Roles" class="form-select"></select>
+        <span asp-validation-for="Role" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3 form-check">
+        <input asp-for="IsLocked" class="form-check-input" />
+        <label asp-for="IsLocked" class="form-check-label"></label>
+    </div>
+
+    <hr class="my-4" />
+    <p class="text-muted small">กรอกรหัสผ่านใหม่เฉพาะเมื่อต้องการเปลี่ยน</p>
+
+    <div class="mb-3">
+        <label asp-for="NewPassword" class="form-label"></label>
+        <input asp-for="NewPassword" class="form-control" />
+        <span asp-validation-for="NewPassword" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ConfirmNewPassword" class="form-label"></label>
+        <input asp-for="ConfirmNewPassword" class="form-control" />
+        <span asp-validation-for="ConfirmNewPassword" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึก</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

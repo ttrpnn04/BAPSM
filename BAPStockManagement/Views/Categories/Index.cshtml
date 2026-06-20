@@ -1,0 +1,56 @@
+@model IEnumerable<BAPStockManagement.ViewModels.Categories.CategoryListItemViewModel>
+@{
+    ViewData["Title"] = "จัดการหมวดหมู่";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">จัดการหมวดหมู่</h1>
+    <a asp-action="Create" class="btn btn-primary">+ เพิ่มหมวดหมู่</a>
+</div>
+
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>ลำดับ</th>
+                <th>ชื่อหมวดหมู่</th>
+                <th>ชื่อคอลัมน์สี/รุ่น</th>
+                <th class="text-end">สินค้า</th>
+                <th>สถานะ</th>
+                <th class="text-end">จัดการ</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr class="@(!item.IsActive ? "table-secondary" : "")">
+                    <td>@item.SortOrder</td>
+                    <td>@item.CategoryName</td>
+                    <td>@item.VariantLabel</td>
+                    <td class="text-end">@item.ProductCount</td>
+                    <td>
+                        @if (item.IsActive)
+                        {
+                            <span class="badge bg-success">ใช้งาน</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">ปิด</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <a asp-action="Edit" asp-route-id="@item.CategoryId" class="btn btn-sm btn-outline-primary">แก้ไข</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

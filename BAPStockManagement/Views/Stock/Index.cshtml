@@ -1,0 +1,118 @@
+@model BAPStockManagement.ViewModels.Stock.StockIndexViewModel
+@{
+    ViewData["Title"] = "สต็อกสินค้า";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">สต็อกสินค้า</h1>
+    <div class="d-flex gap-2">
+        @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
+        {
+            <a asp-controller="Transactions" asp-action="Create" class="btn btn-primary">+ บันทึกรายการ</a>
+        }
+        <a asp-action="MonthlyReport" class="btn btn-outline-secondary">รายงานรายเดือน</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 bg-light">
+            <div class="card-body py-3">
+                <div class="text-muted small">จำนวน Variant</div>
+                <div class="fs-4 fw-semibold">@Model.TotalVariants</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 bg-light">
+            <div class="card-body py-3">
+                <div class="text-muted small">รวม (ชิ้น)</div>
+                <div class="fs-4 fw-semibold">@Model.TotalPieces.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 bg-light">
+            <div class="card-body py-3">
+                <div class="text-muted small">รวม (ลัง)</div>
+                <div class="fs-4 fw-semibold">@Model.TotalCases.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form asp-action="Index" method="get" class="row g-2 mb-4">
+    <div class="col-md-3">
+        <select name="category" class="form-select">
+            <option value="">-- ทุกหมวดหมู่ --</option>
+            @foreach (var cat in Model.Categories)
+            {
+                if (Model.CategoryFilter == cat)
+                {
+                    <option value="@cat" selected>@cat</option>
+                }
+                else
+                {
+                    <option value="@cat">@cat</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-5">
+        <input type="text" name="search" value="@Model.Search" class="form-control"
+               placeholder="ค้นหา SKU, ชื่อสินค้า, สี/รุ่น" />
+    </div>
+    <div class="col-md-4">
+        <button type="submit" class="btn btn-primary">ค้นหา</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">ล้าง</a>
+    </div>
+</form>
+
+@if (!Model.Items.Any())
+{
+    <div class="alert alert-info">ไม่พบสินค้า</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>หมวดหมู่</th>
+                    <th>SKU</th>
+                    <th>ชื่อสินค้า</th>
+                    <th>สี/รุ่น</th>
+                    <th class="text-end">ชิ้น</th>
+                    <th class="text-end">ลัง</th>
+                    <th>หน่วย</th>
+                    <th>อัปเดตล่าสุด</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    var isEmpty = item.QtyPieces == 0 && item.QtyCases == 0;
+                    <tr class="@(isEmpty ? "table-warning" : "")">
+                        <td>@item.CategoryName</td>
+                        <td><code>@item.Sku</code></td>
+                        <td>@item.ProductName</td>
+                        <td>@item.VariantName</td>
+                        <td class="text-end fw-semibold">@item.QtyPieces.ToString("N0")</td>
+                        <td class="text-end fw-semibold">@item.QtyCases.ToString("N0")</td>
+                        <td>@item.Unit</td>
+                        <td>
+                            @if (item.LastUpdated.HasValue)
+                            {
+                                @item.LastUpdated.Value.ToString("dd/MM/yyyy HH:mm")
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

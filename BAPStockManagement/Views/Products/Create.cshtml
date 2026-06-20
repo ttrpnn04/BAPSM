@@ -1,0 +1,57 @@
+@model BAPStockManagement.ViewModels.Products.CreateProductViewModel
+@{
+    ViewData["Title"] = "เพิ่มสินค้า";
+}
+
+<h1 class="h3 mb-4">เพิ่มสินค้าใหม่</h1>
+
+<form asp-action="Create" method="post" class="col-lg-7">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="mb-3">
+        <label asp-for="CategoryId" class="form-label"></label>
+        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select">
+            <option value="">-- เลือกหมวดหมู่ --</option>
+        </select>
+        <span asp-validation-for="CategoryId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Sku" class="form-label"></label>
+        <input asp-for="Sku" class="form-control" />
+        <span asp-validation-for="Sku" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ProductName" class="form-label"></label>
+        <input asp-for="ProductName" class="form-control" />
+        <span asp-validation-for="ProductName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Unit" class="form-label"></label>
+        <input asp-for="Unit" class="form-control" />
+        <span asp-validation-for="Unit" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="VariantsText" class="form-label"></label>
+        <textarea asp-for="VariantsText" class="form-control" rows="5"
+                  placeholder="เช่น&#10;ดำ&#10;ขาว&#10;แดง"></textarea>
+        <div class="form-text">ใส่สี/รุ่นได้หลายรายการ คั่นด้วย Enter, จุลภาค หรือเซมิโคลอน</div>
+        <span asp-validation-for="VariantsText" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Note" class="form-label"></label>
+        <textarea asp-for="Note" class="form-control" rows="2"></textarea>
+        <span asp-validation-for="Note" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">บันทึก</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
