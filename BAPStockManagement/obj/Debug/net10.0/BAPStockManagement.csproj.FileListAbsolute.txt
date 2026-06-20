@@ -147,9 +147,7 @@ C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\rjsmc
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\scopedcss\Views\Shared\_Layout.cshtml.rz.scp.css
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\scopedcss\bundle\BAPStockManagement.styles.css
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\scopedcss\projectbundle\BAPStockManagement.bundle.scp.css
-C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-b9sayid5wm-b9sayid5wm.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\fw3jtz9ph9-{0}-61n19gt1b8-61n19gt1b8.gz
-C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-xtxxf3hu2r-xtxxf3hu2r.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\rvl308qi1y-{0}-bqjiyaj88i-bqjiyaj88i.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\79sysu70i8-{0}-c2jlpeoesf-c2jlpeoesf.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\uyb41yrtb1-{0}-erw9l3u2r3-erw9l3u2r3.gz
@@ -209,8 +207,6 @@ C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compr
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\qzsgexaxbq-{0}-muycvpuwrr-muycvpuwrr.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\pgsb9ghaij-{0}-87fc7y1x7t-87fc7y1x7t.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\nvs9dqezwh-{0}-mlv21k5csn-mlv21k5csn.gz
-C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\59cemaz2lc-{0}-3magpy56a7-3magpy56a7.gz
-C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\i2lpin8fri-{0}-3magpy56a7-3magpy56a7.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\staticwebassets.build.json
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\staticwebassets.build.json.cache
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\staticwebassets.development.json
@@ -288,3 +284,8 @@ C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compr
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\nezrqnk58p-{0}-muycvpuwrr-muycvpuwrr.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\v0zgfp0y55-{0}-87fc7y1x7t-87fc7y1x7t.gz
 C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\yfc7ypekbg-{0}-mlv21k5csn-mlv21k5csn.gz
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\BAPStockManagement.sourcelink.json
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-ly7lji0szd-ly7lji0szd.gz
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-mbjzxy99mq-mbjzxy99mq.gz
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\59cemaz2lc-{0}-3cg7e59642-3cg7e59642.gz
+C:\Users\pigeo\OneDrive\Desktop\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\i2lpin8fri-{0}-3cg7e59642-3cg7e59642.gz

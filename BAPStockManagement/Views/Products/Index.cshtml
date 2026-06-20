@@ -7,26 +7,27 @@
     var showInactive = ViewBag.ShowInactive as bool? ?? false;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">จัดการสินค้า</h1>
+<div class="page-header">
+    <div>
+        <h1>จัดการสินค้า</h1>
+        <p class="subtitle">SKU, ชื่อสินค้า และสี/รุ่น</p>
+    </div>
     @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
     {
-        <a asp-action="Create" class="btn btn-primary">+ เพิ่มสินค้า</a>
+        <div class="page-actions">
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>เพิ่มสินค้า
+            </a>
+        </div>
     }
 </div>
 
-@if (TempData["Success"] is string success)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @success
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-<form asp-action="Index" method="get" class="row g-2 mb-4">
+<div class="filter-bar">
+<form asp-action="Index" method="get" class="row g-2 align-items-end">
     <div class="col-md-3">
+        <label class="form-label">หมวดหมู่</label>
         <select name="category" class="form-select">
-            <option value="">-- ทุกหมวดหมู่ --</option>
+            <option value="">ทุกหมวดหมู่</option>
             @foreach (var cat in categories)
             {
                 if (categoryFilter == cat)
@@ -41,31 +42,39 @@
         </select>
     </div>
     <div class="col-md-4">
+        <label class="form-label">ค้นหา</label>
         <input type="text" name="search" value="@search" class="form-control"
                placeholder="ค้นหา SKU, ชื่อสินค้า" />
     </div>
     <div class="col-md-2">
-        <div class="form-check mt-2">
+        <div class="form-check mb-2">
             <input type="checkbox" name="showInactive" value="true" class="form-check-input"
                    id="showInactive" @(showInactive ? "checked" : "") />
             <label class="form-check-label" for="showInactive">แสดงที่ปิดใช้งาน</label>
         </div>
     </div>
     <div class="col-md-3">
-        <button type="submit" class="btn btn-primary">ค้นหา</button>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>ค้นหา</button>
         <a asp-action="Index" class="btn btn-outline-secondary">ล้าง</a>
     </div>
 </form>
+</div>
 
 @if (!Model.Any())
 {
-    <div class="alert alert-info">ไม่พบสินค้า</div>
+    <div class="card-app">
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-tag"></i></div>
+            <p class="mb-0">ไม่พบสินค้า</p>
+        </div>
+    </div>
 }
 else
 {
+    <div class="table-card">
     <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-light">
+        <table class="table table-hover align-middle">
+            <thead>
                 <tr>
                     <th>หมวดหมู่</th>
                     <th>SKU</th>
@@ -82,9 +91,9 @@ else
                 @foreach (var item in Model)
                 {
                     <tr class="@(!item.IsActive ? "table-secondary" : "")">
-                        <td>@item.CategoryName</td>
+                        <td><span class="text-muted small">@item.CategoryName</span></td>
                         <td><code>@item.Sku</code></td>
-                        <td>@item.ProductName</td>
+                        <td class="fw-medium">@item.ProductName</td>
                         <td>@item.Unit</td>
                         <td class="text-end">@item.VariantCount</td>
                         <td class="text-end">@item.TotalPieces.ToString("N0")</td>
@@ -102,16 +111,17 @@ else
                         <td class="text-end">
                             @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
                             {
-                                <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-primary">แก้ไข</a>
+                                <a asp-action="Edit" asp-route-id="@item.ProductId" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
                             }
                             @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
                             {
-                                <a asp-controller="Transactions" asp-action="Create" class="btn btn-sm btn-outline-success">บันทึกสต็อก</a>
+                                <a asp-controller="Transactions" asp-action="Create" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i></a>
                             }
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
+    </div>
     </div>
 }

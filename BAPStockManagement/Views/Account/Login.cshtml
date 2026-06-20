@@ -3,56 +3,83 @@
     ViewData["Title"] = "เข้าสู่ระบบ";
     Layout = null;
 }
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - BAP Stock</title>
+    <title>เข้าสู่ระบบ — BAP Stock</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="bg-light">
-    <div class="container">
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-5">
-                <div class="card shadow-sm">
-                    <div class="card-body p-4">
-                        <h1 class="h4 text-center mb-4">BAP Stock Management</h1>
-                        <h2 class="h5 text-center text-muted mb-4">เข้าสู่ระบบ</h2>
+<body class="login-body">
 
-                        <form asp-action="Login" method="post">
-                            <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
-                            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
-
-                            <div class="mb-3">
-                                <label asp-for="Email" class="form-label"></label>
-                                <input asp-for="Email" class="form-control" autocomplete="username" />
-                                <span asp-validation-for="Email" class="text-danger"></span>
-                            </div>
-
-                            <div class="mb-3">
-                                <label asp-for="Password" class="form-label"></label>
-                                <input asp-for="Password" class="form-control" autocomplete="current-password" />
-                                <span asp-validation-for="Password" class="text-danger"></span>
-                            </div>
-
-                            <div class="mb-3 form-check">
-                                <input asp-for="RememberMe" class="form-check-input" />
-                                <label asp-for="RememberMe" class="form-check-label"></label>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary w-100">เข้าสู่ระบบ</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+    <div class="login-wrap">
+        <!-- Logo -->
+        <div class="login-logo-row">
+            <div class="login-logo-icon"><i class="bi bi-box-seam"></i></div>
+            <span class="login-logo-name">BAP Stock</span>
         </div>
+
+        <!-- Card -->
+        <div class="login-card">
+            <h2>ยินดีต้อนรับ</h2>
+            <p class="login-sub">กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</p>
+
+            <form asp-action="Login" method="post">
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3" role="alert"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label"></label>
+                    <div class="field-icon-wrap">
+                        <i class="bi bi-envelope field-icon"></i>
+                        <input asp-for="Email" class="form-control" autocomplete="username"
+                               placeholder="name@company.com" />
+                    </div>
+                    <span asp-validation-for="Email" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label"></label>
+                    <div class="field-icon-wrap">
+                        <i class="bi bi-lock field-icon"></i>
+                        <input asp-for="Password" class="form-control has-eye" autocomplete="current-password"
+                               placeholder="••••••••" id="passwordInput" />
+                        <button type="button" class="btn-eye" id="togglePassword" tabindex="-1" aria-label="แสดง/ซ่อนรหัสผ่าน">
+                            <i class="bi bi-eye-slash" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger" style="font-size:.8rem"></span>
+                </div>
+
+                <div class="mb-4 form-check">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label" style="font-size:.875rem"></label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-login-submit">
+                    เข้าสู่ระบบ
+                </button>
+            </form>
+        </div>
+
+        <p class="login-footer">&copy; 2026 BAP Stock Management</p>
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('togglePassword')?.addEventListener('click', function () {
+            const input = document.getElementById('passwordInput');
+            const icon = document.getElementById('eyeIcon');
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            icon.className = isHidden ? 'bi bi-eye' : 'bi bi-eye-slash';
+        });
+    </script>
     <partial name="_ValidationScriptsPartial" />
 </body>
 </html>

@@ -3,107 +3,113 @@
     ViewData["Title"] = "ประวัติรายการสต็อก";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">ประวัติรายการสต็อก</h1>
+<div class="page-header">
+    <div>
+        <h1>ประวัติรายการสต็อก</h1>
+        <p class="subtitle">รายการรับเข้าและจ่ายออกย้อนหลัง</p>
+    </div>
     @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin") || User.IsInRole("Staff"))
     {
-        <a asp-action="Create" class="btn btn-primary">+ บันทึกรายการ</a>
+        <div class="page-actions">
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>บันทึกรายการ
+            </a>
+        </div>
     }
 </div>
 
-@if (TempData["Success"] is string success)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @success
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-<form asp-action="Index" method="get" class="row g-2 mb-4">
-    <div class="col-md-2">
-        <label class="form-label small text-muted">จากวันที่</label>
-        <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small text-muted">ถึงวันที่</label>
-        <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
-    </div>
-    <div class="col-md-2">
-        <label class="form-label small text-muted">ประเภท</label>
-        <select name="transactionTypeId" class="form-select">
-            <option value="">-- ทั้งหมด --</option>
-            @foreach (var type in Model.TransactionTypes)
-            {
-                if (Model.TransactionTypeId == type.TransactionTypeId)
+<div class="filter-bar">
+    <form asp-action="Index" method="get" class="row g-2 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label">จากวันที่</label>
+            <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">ถึงวันที่</label>
+            <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">ประเภท</label>
+            <select name="transactionTypeId" class="form-select">
+                <option value="">ทั้งหมด</option>
+                @foreach (var type in Model.TransactionTypes)
                 {
-                    <option value="@type.TransactionTypeId" selected>@type.TypeName</option>
+                    if (Model.TransactionTypeId == type.TransactionTypeId)
+                    {
+                        <option value="@type.TransactionTypeId" selected>@type.TypeName</option>
+                    }
+                    else
+                    {
+                        <option value="@type.TransactionTypeId">@type.TypeName</option>
+                    }
                 }
-                else
-                {
-                    <option value="@type.TransactionTypeId">@type.TypeName</option>
-                }
-            }
-        </select>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small text-muted">ค้นหา</label>
-        <input type="text" name="search" value="@Model.Search" class="form-control"
-               placeholder="SKU, ชื่อสินค้า, เลขที่อ้างอิง" />
-    </div>
-    <div class="col-md-3 d-flex align-items-end gap-2">
-        <button type="submit" class="btn btn-primary">ค้นหา</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">ล้าง</a>
-    </div>
-</form>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">ค้นหา</label>
+            <input type="text" name="search" value="@Model.Search" class="form-control"
+                   placeholder="SKU, ชื่อสินค้า, เลขที่อ้างอิง" />
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>ค้นหา</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">ล้าง</a>
+        </div>
+    </form>
+</div>
 
 @if (!Model.Items.Any())
 {
-    <div class="alert alert-info">ไม่พบรายการ</div>
+    <div class="card-app">
+        <div class="empty-state">
+            <div class="empty-icon"><i class="bi bi-journal-x"></i></div>
+            <p class="mb-0">ไม่พบรายการ</p>
+        </div>
+    </div>
 }
 else
 {
-    <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>วันที่</th>
-                    <th>ประเภท</th>
-                    <th>หมวดหมู่</th>
-                    <th>SKU</th>
-                    <th>ชื่อสินค้า</th>
-                    <th>สี/รุ่น</th>
-                    <th class="text-end">ชิ้น</th>
-                    <th class="text-end">ลัง</th>
-                    <th>เลขที่อ้างอิง</th>
-                    <th>ผู้บันทึก</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in Model.Items)
-                {
-                    var isOut = item.Direction < 0;
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
                     <tr>
-                        <td>@item.TxnDate.ToString("dd/MM/yyyy")</td>
-                        <td>
-                            <span class="badge @(isOut ? "bg-danger" : "bg-success")">@item.TypeName</span>
-                        </td>
-                        <td>@item.CategoryName</td>
-                        <td><code>@item.Sku</code></td>
-                        <td>@item.ProductName</td>
-                        <td>@item.VariantName</td>
-                        <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
-                            @(isOut ? "-" : "+")@item.QtyPieces.ToString("N0")
-                        </td>
-                        <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
-                            @(isOut ? "-" : "+")@item.QtyCases.ToString("N0")
-                        </td>
-                        <td>@(item.RefNo ?? "-")</td>
-                        <td>
-                            <span class="text-muted small">@(item.CreatedBy ?? "-")</span>
-                        </td>
+                        <th>วันที่</th>
+                        <th>ประเภท</th>
+                        <th>หมวดหมู่</th>
+                        <th>SKU</th>
+                        <th>ชื่อสินค้า</th>
+                        <th>สี/รุ่น</th>
+                        <th class="text-end">ชิ้น</th>
+                        <th class="text-end">ลัง</th>
+                        <th>เลขที่อ้างอิง</th>
+                        <th>ผู้บันทึก</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        var isOut = item.Direction < 0;
+                        <tr>
+                            <td class="text-muted small">@item.TxnDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <span class="badge @(isOut ? "bg-danger" : "bg-success")">@item.TypeName</span>
+                            </td>
+                            <td><span class="text-muted small">@item.CategoryName</span></td>
+                            <td><code>@item.Sku</code></td>
+                            <td class="fw-medium">@item.ProductName</td>
+                            <td>@item.VariantName</td>
+                            <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
+                                @(isOut ? "-" : "+")@item.QtyPieces.ToString("N0")
+                            </td>
+                            <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
+                                @(isOut ? "-" : "+")@item.QtyCases.ToString("N0")
+                            </td>
+                            <td>@(item.RefNo ?? "-")</td>
+                            <td><span class="text-muted small">@(item.CreatedBy ?? "-")</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 }

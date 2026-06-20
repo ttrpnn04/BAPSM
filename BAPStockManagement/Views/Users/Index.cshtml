@@ -3,62 +3,60 @@
     ViewData["Title"] = "จัดการผู้ใช้";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">จัดการผู้ใช้</h1>
-    <a asp-action="Create" class="btn btn-primary">+ สร้างผู้ใช้</a>
+<div class="page-header">
+    <div>
+        <h1>จัดการผู้ใช้</h1>
+        <p class="subtitle">สร้างและกำหนดสิทธิ์ผู้ใช้งานระบบ</p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-person-plus me-1"></i>สร้างผู้ใช้
+        </a>
+    </div>
 </div>
 
-@if (TempData["Success"] is string success)
-{
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        @success
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-@if (TempData["Error"] is string error)
-{
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        @error
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-}
-
-<div class="table-responsive">
-    <table class="table table-striped table-hover align-middle">
-        <thead class="table-light">
-            <tr>
-                <th>อีเมล</th>
-                <th>บทบาท</th>
-                <th>สถานะ</th>
-                <th class="text-end">จัดการ</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var user in Model)
-            {
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
                 <tr>
-                    <td>@user.Email</td>
-                    <td><span class="badge bg-secondary">@user.Role</span></td>
-                    <td>
-                        @if (user.IsLocked)
-                        {
-                            <span class="badge bg-danger">ปิดใช้งาน</span>
-                        }
-                        else
-                        {
-                            <span class="badge bg-success">ใช้งาน</span>
-                        }
-                    </td>
-                    <td class="text-end">
-                        <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary">แก้ไข</a>
-                        <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline"
-                              onsubmit="return confirm('ยืนยันการลบผู้ใช้ @user.Email?');">
-                            @Html.AntiForgeryToken()
-                            <button type="submit" class="btn btn-sm btn-outline-danger">ลบ</button>
-                        </form>
-                    </td>
+                    <th>อีเมล</th>
+                    <th>บทบาท</th>
+                    <th>สถานะ</th>
+                    <th class="text-end">จัดการ</th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td class="fw-medium">@user.Email</td>
+                        <td><span class="badge bg-secondary">@user.Role</span></td>
+                        <td>
+                            @if (user.IsLocked)
+                            {
+                                <span class="badge bg-danger">ปิดใช้งาน</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">ใช้งาน</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline"
+                                  onsubmit="return confirm('ยืนยันการลบผู้ใช้ @user.Email?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
