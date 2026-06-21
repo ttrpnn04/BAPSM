@@ -1,0 +1,81 @@
+@model BAPStockManagement.ViewModels.Stock.CreateTransactionViewModel
+
+<form id="createTxnForm" method="post">
+    @Html.AntiForgeryToken()
+
+    <div id="modalAlert" class="alert alert-danger d-none py-2 mb-3" role="alert"></div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">สินค้า <span class="text-danger">*</span></label>
+        <select name="ProductId" id="productSelect" class="form-select"
+                asp-items="@((IEnumerable<SelectListItem>)ViewBag.Products)">
+            <option value="">-- เลือกสินค้า --</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">สี/รุ่น <span class="text-danger">*</span></label>
+        <input type="hidden" name="VariantId" id="variantHidden" value="@Model.VariantId" />
+        <div id="variantChips" class="variant-chip-grid">
+            <span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>
+        </div>
+        <div id="variantData" hidden>
+            @foreach (var v in ViewBag.Variants)
+            {
+                <span data-variant-id="@v.VariantId"
+                      data-product-id="@v.ProductId"
+                      data-label="@v.Label"></span>
+            }
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">ประเภทรายการ <span class="text-danger">*</span></label>
+        <div class="txn-type-group">
+            @foreach (var type in (IEnumerable<BAPStockManagement.Models.TransactionType>)ViewBag.TransactionTypesList)
+            {
+                var isIn      = type.Direction > 0;
+                var isChecked = Model.TransactionTypeId == type.TransactionTypeId;
+                <label class="txn-type-pill @(isIn ? "txn-type-pill--in" : "txn-type-pill--out") @(isChecked ? "is-checked" : "")">
+                    <input type="radio" name="TransactionTypeId" value="@type.TransactionTypeId" @(isChecked ? "checked" : "") />
+                    <i class="bi @(isIn ? "bi-arrow-down-circle" : "bi-arrow-up-circle")"></i>
+                    @type.TypeName
+                </label>
+            }
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">วันที่ <span class="text-danger">*</span></label>
+        <input type="date" name="TxnDate" class="form-control" value="@Model.TxnDate.ToString("yyyy-MM-dd")" />
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-6">
+            <label class="form-label fw-medium">จำนวน (ชิ้น)</label>
+            <input type="number" name="QtyPieces" class="form-control" value="@Model.QtyPieces" min="0" />
+        </div>
+        <div class="col-6">
+            <label class="form-label fw-medium">จำนวน (ลัง)</label>
+            <input type="number" name="QtyCases" class="form-control" value="@Model.QtyCases" min="0" />
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">เลขที่อ้างอิง</label>
+        <input type="text" name="RefNo" class="form-control" value="@Model.RefNo"
+               placeholder="เช่น PO-001, INV-123" maxlength="50" />
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea name="Note" class="form-control" rows="2" maxlength="300">@Model.Note</textarea>
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary" id="modalSubmitBtn">
+            <i class="bi bi-check-lg me-1"></i>บันทึก
+        </button>
+    </div>
+</form>

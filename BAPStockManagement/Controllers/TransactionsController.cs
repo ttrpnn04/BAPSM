@@ -137,6 +137,35 @@ public class TransactionsController : Controller
 
     [Authorize(Roles = AppRoles.StockEdit)]
     [HttpGet]
+    public async Task<IActionResult> CreateModal(int? variantId, int? productId)
+    {
+        var selectedVariantId = variantId;
+        if (!selectedVariantId.HasValue && productId.HasValue)
+        {
+            selectedVariantId = await EnsureDefaultVariantForProductAsync(productId.Value);
+        }
+
+        var selectedProductId = productId;
+        if (!selectedProductId.HasValue && selectedVariantId.HasValue)
+        {
+            selectedProductId = await _context.ProductVariants
+                .AsNoTracking()
+                .Where(v => v.VariantId == selectedVariantId.Value)
+                .Select(v => (int?)v.ProductId)
+                .FirstOrDefaultAsync();
+        }
+
+        await PopulateCreateLookupsAsync(selectedVariantId);
+
+        return PartialView("_CreateModal", new CreateTransactionViewModel
+        {
+            ProductId = selectedProductId,
+            VariantId = selectedVariantId ?? 0
+        });
+    }
+
+    [Authorize(Roles = AppRoles.StockEdit)]
+    [HttpGet]
     public async Task<IActionResult> Create(int? variantId, int? productId)
     {
         var selectedVariantId = variantId;
@@ -169,7 +198,9 @@ public class TransactionsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateTransactionViewModel model)
     {
-        await PopulateCreateLookupsAsync(model.VariantId);
+        var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+        if (!isAjax) await PopulateCreateLookupsAsync(model.VariantId);
 
         if (model.QtyPieces == 0 && model.QtyCases == 0)
         {
@@ -178,6 +209,11 @@ public class TransactionsController : Controller
 
         if (!ModelState.IsValid)
         {
+            if (isAjax)
+            {
+                var msgs = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                return BadRequest(new { message = string.Join(" | ", msgs) });
+            }
             return View(model);
         }
 
@@ -187,12 +223,14 @@ public class TransactionsController : Controller
 
         if (variant == null)
         {
+            if (isAjax) return BadRequest(new { message = "ไม่พบสินค้าที่เลือก" });
             ModelState.AddModelError(nameof(model.VariantId), "ไม่พบสินค้าที่เลือก");
             return View(model);
         }
 
         if (model.ProductId.HasValue && variant.ProductId != model.ProductId.Value)
         {
+            if (isAjax) return BadRequest(new { message = "สี/รุ่นไม่ตรงกับสินค้าที่เลือก" });
             ModelState.AddModelError(nameof(model.VariantId), "สี/รุ่นไม่ตรงกับสินค้าที่เลือก");
             return View(model);
         }
@@ -202,6 +240,7 @@ public class TransactionsController : Controller
 
         if (txnType == null)
         {
+            if (isAjax) return BadRequest(new { message = "ประเภทรายการไม่ถูกต้อง" });
             ModelState.AddModelError(nameof(model.TransactionTypeId), "ประเภทรายการไม่ถูกต้อง");
             return View(model);
         }
@@ -214,8 +253,9 @@ public class TransactionsController : Controller
 
             if (model.QtyPieces > currentPieces || model.QtyCases > currentCases)
             {
-                ModelState.AddModelError(string.Empty,
-                    $"สต็อกไม่เพียงพอ (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)");
+                var msg = $"สต็อกไม่เพียงพอ (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)";
+                if (isAjax) return BadRequest(new { message = msg });
+                ModelState.AddModelError(string.Empty, msg);
                 return View(model);
             }
         }
@@ -235,6 +275,7 @@ public class TransactionsController : Controller
         _context.StockTransactions.Add(transaction);
         await _context.SaveChangesAsync();
 
+        if (isAjax) return Ok(new { success = true });
         TempData["Success"] = "บันทึกรายการสต็อกสำเร็จ";
         return RedirectToAction(nameof(Index));
     }
