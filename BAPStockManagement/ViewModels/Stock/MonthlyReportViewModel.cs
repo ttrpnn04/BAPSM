@@ -10,15 +10,29 @@ public class MonthlyReportViewModel
 
     public string? CategoryFilter { get; set; }
 
+    public string? Search { get; set; }
+
     public IReadOnlyList<string> Categories { get; set; } = [];
 
     public IReadOnlyList<VwMonthlySummary> Items { get; set; } = [];
 
-    public int TotalIn => Items.Sum(i => i.QtyIn ?? 0);
+    public int TotalIn { get; set; }
 
-    public int TotalOut => Items.Sum(i => i.QtyOut ?? 0);
+    public int TotalOut { get; set; }
 
-    public int TotalNet => Items.Sum(i => i.NetChange ?? 0);
+    public int TotalNet { get; set; }
+
+    public int Page { get; set; } = 1;
+
+    public int PageSize { get; set; } = 25;
+
+    public int TotalItems { get; set; }
+
+    public int TotalPages => TotalItems == 0 ? 1 : (int)Math.Ceiling((double)TotalItems / PageSize);
+
+    public bool HasPreviousPage => Page > 1;
+
+    public bool HasNextPage => Page < TotalPages;
 
     public string MonthLabel => $"{Month:00}/{Year}";
 }

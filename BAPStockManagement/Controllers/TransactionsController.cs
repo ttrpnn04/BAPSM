@@ -22,8 +22,12 @@ public class TransactionsController : Controller
         _userManager = userManager;
     }
 
-    public async Task<IActionResult> Index(DateOnly? fromDate, DateOnly? toDate, int? transactionTypeId, string? search)
+    public async Task<IActionResult> Index(DateOnly? fromDate, DateOnly? toDate, int? transactionTypeId, string? search, int page = 1, int pageSize = 25)
     {
+        var allowedPageSizes = new[] { 10, 25, 50 };
+        if (!allowedPageSizes.Contains(pageSize)) pageSize = 25;
+        if (page < 1) page = 1;
+
         var from = fromDate ?? DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
         var to = toDate ?? DateOnly.FromDateTime(DateTime.Today);
 
@@ -65,9 +69,15 @@ public class TransactionsController : Controller
                 (t.RefNo != null && t.RefNo.Contains(term)));
         }
 
+        var totalItems = await query.CountAsync();
+        var totalPages = totalItems == 0 ? 1 : (int)Math.Ceiling((double)totalItems / pageSize);
+        if (page > totalPages) page = totalPages;
+
         var items = await query
             .OrderByDescending(t => t.TxnDate)
             .ThenByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(t => new TransactionListItemViewModel
             {
                 TransactionId = t.TransactionId,
@@ -118,7 +128,10 @@ public class TransactionsController : Controller
             TransactionTypeId = transactionTypeId,
             Search = search,
             TransactionTypes = types,
-            Items = items
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalItems = totalItems
         });
     }
 
@@ -312,5 +325,6 @@ public class TransactionsController : Controller
             .ToListAsync();
 
         ViewBag.TransactionTypes = new SelectList(types, "TransactionTypeId", "TypeName");
+        ViewBag.TransactionTypesList = types;
     }
 }

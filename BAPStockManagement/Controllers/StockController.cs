@@ -134,8 +134,12 @@ public class StockController : Controller
         });
     }
 
-    public async Task<IActionResult> MonthlyReport(int? year, int? month, string? category)
+    public async Task<IActionResult> MonthlyReport(int? year, int? month, string? category, string? search, int page = 1, int pageSize = 25)
     {
+        var allowedPageSizes = new[] { 10, 25, 50 };
+        if (!allowedPageSizes.Contains(pageSize)) pageSize = 25;
+        if (page < 1) page = 1;
+
         var today = DateTime.Today;
         var reportYear = year ?? today.Year;
         var reportMonth = month ?? today.Month;
@@ -166,19 +170,48 @@ public class StockController : Controller
             query = query.Where(s => s.CategoryName == category);
         }
 
-        var items = await query
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(s =>
+                s.Sku.Contains(term) ||
+                s.ProductName.Contains(term) ||
+                s.VariantName.Contains(term));
+        }
+
+        var allItems = await query
             .OrderBy(s => s.CategoryName)
             .ThenBy(s => s.ProductName)
             .ThenBy(s => s.VariantName)
             .ToListAsync();
+
+        var totalIn  = allItems.Sum(i => i.QtyIn  ?? 0);
+        var totalOut = allItems.Sum(i => i.QtyOut ?? 0);
+        var totalNet = allItems.Sum(i => i.NetChange ?? 0);
+        var totalItems = allItems.Count;
+
+        var totalPages = totalItems == 0 ? 1 : (int)Math.Ceiling((double)totalItems / pageSize);
+        if (page > totalPages) page = totalPages;
+
+        var pagedItems = allItems
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         return View(new MonthlyReportViewModel
         {
             Year = reportYear,
             Month = reportMonth,
             CategoryFilter = category,
+            Search = search,
             Categories = categories,
-            Items = items
+            Items = pagedItems,
+            TotalIn = totalIn,
+            TotalOut = totalOut,
+            TotalNet = totalNet,
+            TotalItems = totalItems,
+            Page = page,
+            PageSize = pageSize
         });
     }
 }

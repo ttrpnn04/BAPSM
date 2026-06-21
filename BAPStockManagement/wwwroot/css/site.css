@@ -777,15 +777,139 @@ code {
 }
 
 .color-chip {
+  --chip-bg:   #f4f4f5;
+  --chip-text: var(--text-2);
+  --chip-dot:  #94a3b8;
   display: inline-flex;
   align-items: center;
-  padding: 0.18rem 0.45rem;
+  gap: 0.28rem;
+  padding: 0.22rem 0.55rem 0.22rem 0.38rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 500;
-  background: #f4f4f5;
-  color: var(--text-2);
-  border: 1px solid var(--border);
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  border: 1px solid color-mix(in srgb, var(--chip-dot) 35%, transparent);
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.color-chip__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--chip-dot);
+  flex-shrink: 0;
+}
+.color-chip__name {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.color-chip__qty {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--chip-dot) 20%, transparent);
+  color: var(--chip-text);
+  border-radius: 999px;
+  padding: 0 0.38rem;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.color-chip__qty--zero {
+  background: transparent;
+  font-weight: 400;
+  opacity: 0.55;
+  font-style: italic;
+}
+.color-chip--empty {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+
+/* ── Transaction type pill buttons ─────────────────────────────── */
+.txn-type-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.txn-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  user-select: none;
+}
+.txn-type-pill input[type="radio"] { display: none; }
+.txn-type-pill--in {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.txn-type-pill--in:hover { background: #dcfce7; border-color: #4ade80; }
+.txn-type-pill--in.is-checked {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+.txn-type-pill--out {
+  background: #fff1f2;
+  color: #9f1239;
+  border-color: #fecdd3;
+}
+.txn-type-pill--out:hover { background: #ffe4e6; border-color: #fb7185; }
+.txn-type-pill--out.is-checked {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+/* ── Variant chip selector ──────────────────────────────────────── */
+.variant-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  align-items: flex-start;
+  padding: 0.25rem 0;
+}
+.variant-chip-btn {
+  --chip-bg:   #f4f4f5;
+  --chip-text: #52525b;
+  --chip-dot:  #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  border: 2px solid color-mix(in srgb, var(--chip-dot) 30%, transparent);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.variant-chip-btn:hover {
+  border-color: var(--chip-dot);
+  filter: brightness(0.95);
+}
+.variant-chip-btn.is-selected {
+  border-color: var(--chip-dot);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--chip-dot) 25%, transparent);
+  font-weight: 600;
+}
+.variant-chip-btn .color-chip__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--chip-dot);
+  flex-shrink: 0;
 }
 
 .ql-primary .ql-icon { background: var(--primary-soft); color: var(--primary); }

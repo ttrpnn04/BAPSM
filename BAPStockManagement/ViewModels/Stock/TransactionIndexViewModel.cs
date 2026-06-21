@@ -13,6 +13,18 @@ public class TransactionIndexViewModel
     public IReadOnlyList<TransactionTypeOption> TransactionTypes { get; set; } = [];
 
     public IReadOnlyList<TransactionListItemViewModel> Items { get; set; } = [];
+
+    public int Page { get; set; } = 1;
+
+    public int PageSize { get; set; } = 25;
+
+    public int TotalItems { get; set; }
+
+    public int TotalPages => TotalItems == 0 ? 1 : (int)Math.Ceiling((double)TotalItems / PageSize);
+
+    public bool HasPreviousPage => Page > 1;
+
+    public bool HasNextPage => Page < TotalPages;
 }
 
 public class TransactionTypeOption
