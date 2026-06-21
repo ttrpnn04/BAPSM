@@ -22,36 +22,55 @@
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-sm-6 col-xl-3">
         <div class="stat-card stat-primary">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="stat-label">จำนวน Variant</div>
-                    <div class="stat-value">@Model.TotalVariants</div>
+                    <div class="stat-label">จำนวนรุ่นสินค้า</div>
+                    <div class="stat-value">@Model.TotalItems.ToString("N0")</div>
+                    <div class="stat-sub">@Model.TotalVariants สี/รุ่นทั้งหมด</div>
                 </div>
-                <div class="stat-icon"><i class="bi bi-palette"></i></div>
+                <div class="stat-icon"><i class="bi bi-grid-3x3-gap"></i></div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-sm-6 col-xl-3">
         <div class="stat-card stat-success">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="stat-label">รวม (ชิ้น)</div>
+                    <div class="stat-label">สต็อกรวม</div>
                     <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
+                    <div class="stat-sub">@Model.TotalCases.ToString("N0") ลัง</div>
                 </div>
-                <div class="stat-icon"><i class="bi bi-box"></i></div>
+                <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="stat-card stat-info">
+    <div class="col-sm-6 col-xl-3">
+        <div id="lowStockCard"
+             class="stat-card stat-clickable @(Model.LowStockCount > 0 ? "stat-warning" : "stat-secondary")"
+             role="button" title="คลิกเพื่อดูรายการ">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="stat-label">รวม (ลัง)</div>
-                    <div class="stat-value">@Model.TotalCases.ToString("N0")</div>
+                    <div class="stat-label">สินค้าใกล้หมด</div>
+                    <div class="stat-value">@Model.LowStockCount</div>
+                    <div class="stat-sub">เหลือ ≤ 10 ชิ้น</div>
                 </div>
-                <div class="stat-icon"><i class="bi bi-boxes"></i></div>
+                <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div id="outOfStockCard"
+             class="stat-card stat-clickable @(Model.OutOfStockCount > 0 ? "stat-danger" : "stat-secondary")"
+             role="button" title="คลิกเพื่อดูรายการ">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">หมดสต็อก</div>
+                    <div class="stat-value">@Model.OutOfStockCount</div>
+                    <div class="stat-sub">รุ่นที่ไม่มีสต็อก</div>
+                </div>
+                <div class="stat-icon"><i class="bi bi-x-circle"></i></div>
             </div>
         </div>
     </div>
@@ -251,6 +270,22 @@ else
     </div>
 }
 
+<div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title" id="alertModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-2" id="alertModalBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="createTxnModal" tabindex="-1" aria-labelledby="createTxnModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -438,6 +473,83 @@ else
             }
         });
     });
+
+    /* ── alert modal (ใกล้หมด / หมดสต็อก) ───────────────────── */
+    function chipHtml(variantName, qtyPieces) {
+        const col   = resolveColor(variantName);
+        const empty = qtyPieces === 0;
+        return `<span class="color-chip ${empty ? 'color-chip--empty' : ''}"
+                      style="--chip-bg:${col.bg};--chip-text:${col.text};--chip-dot:${col.dot}">
+                    <span class="color-chip__dot"></span>
+                    <span class="color-chip__name">${variantName}</span>
+                    <span class="color-chip__qty ${empty ? 'color-chip__qty--zero' : ''}">${empty ? 'หมด' : qtyPieces.toLocaleString()}</span>
+                </span>`;
+    }
+
+    async function openAlertModal(alertType) {
+        const isOut = alertType === 'out';
+        const icon  = isOut ? 'bi-x-circle text-danger' : 'bi-exclamation-triangle text-warning';
+        const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น)';
+
+        document.getElementById('alertModalTitle').innerHTML =
+            `<i class="bi ${icon} me-2"></i>${title}`;
+        document.getElementById('alertModalBody').innerHTML =
+            '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('alertModal')).show();
+
+        try {
+            const res   = await fetch(`@Url.Action("AlertItems", "Stock")?alertType=${alertType}`);
+            const items = await res.json();
+
+            if (!items.length) {
+                document.getElementById('alertModalBody').innerHTML =
+                    '<p class="text-muted text-center py-4"><i class="bi bi-check-circle me-1 text-success"></i>ไม่มีรายการ</p>';
+                return;
+            }
+
+            const colorCol = !isOut;
+            let html = `<div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-muted small fw-normal">หมวดหมู่</th>
+                            <th class="text-muted small fw-normal">SKU</th>
+                            <th class="text-muted small fw-normal">ชื่อสินค้า</th>
+                            ${colorCol ? '<th class="text-muted small fw-normal">สี/รุ่น</th>' : ''}
+                            <th class="text-end text-muted small fw-normal">ชิ้นรวม</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            for (const item of items) {
+                const pcsClass = item.qtyPieces === 0 ? 'text-danger fw-bold' : 'text-warning fw-bold';
+                let colorCell = '';
+                if (colorCol) {
+                    const activeColors = item.colors.filter(c => c.qtyPieces > 0);
+                    colorCell = `<td>${activeColors.length
+                        ? `<div class="d-flex flex-wrap gap-1">${activeColors.map(c => chipHtml(c.variantName, c.qtyPieces)).join(' ')}</div>`
+                        : '<span class="text-muted small fst-italic">-</span>'}</td>`;
+                }
+                html += `<tr>
+                    <td><span class="text-muted small">${item.categoryName}</span></td>
+                    <td><code>${item.sku}</code></td>
+                    <td class="fw-medium">${item.productName}</td>
+                    ${colorCell}
+                    <td class="text-end ${pcsClass}">${item.qtyPieces.toLocaleString()}</td>
+                </tr>`;
+            }
+
+            html += '</tbody></table></div>';
+            document.getElementById('alertModalBody').innerHTML = html;
+        } catch {
+            document.getElementById('alertModalBody').innerHTML =
+                '<div class="alert alert-danger m-2">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
+        }
+    }
+
+    document.getElementById('lowStockCard')  ?.addEventListener('click', () => openAlertModal('low'));
+    document.getElementById('outOfStockCard')?.addEventListener('click', () => openAlertModal('out'));
 })();
 </script>
 }

@@ -107,6 +107,8 @@ public class StockController : Controller
         var totalVariants = items.Sum(i => i.Colors.Count);
         var totalPieces = items.Sum(i => i.QtyPieces);
         var totalCases = items.Sum(i => i.QtyCases);
+        var outOfStockCount = items.Count(i => i.QtyPieces == 0 && i.QtyCases == 0);
+        var lowStockCount   = items.Count(i => i.QtyPieces > 0 && i.QtyPieces <= 10);
 
         var totalPages = totalItems == 0 ? 1 : (int)Math.Ceiling((double)totalItems / pageSize);
         if (page > totalPages)
@@ -128,10 +130,59 @@ public class StockController : Controller
             TotalVariants = totalVariants,
             TotalPieces = totalPieces,
             TotalCases = totalCases,
+            OutOfStockCount = outOfStockCount,
+            LowStockCount = lowStockCount,
             Page = page,
             PageSize = pageSize,
             TotalItems = totalItems
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> AlertItems(string alertType)
+    {
+        var products = await _context.Products
+            .AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.ProductVariants)
+                .ThenInclude(v => v.StockBalance)
+            .Where(p => p.IsActive && p.Category.IsActive)
+            .OrderBy(p => p.Category.SortOrder)
+            .ThenBy(p => p.Category.CategoryName)
+            .ThenBy(p => p.ProductName)
+            .ToListAsync();
+
+        var rows = products
+            .Select(p =>
+            {
+                var variants = p.ProductVariants
+                    .Where(v => v.IsActive)
+                    .Select(v => new
+                    {
+                        variantName = v.VariantName,
+                        qtyPieces   = v.StockBalance?.QtyPieces ?? 0,
+                        qtyCases    = v.StockBalance?.QtyCases  ?? 0
+                    })
+                    .OrderByDescending(v => v.qtyPieces)
+                    .ThenBy(v => v.variantName)
+                    .ToList();
+
+                return new
+                {
+                    sku          = p.Sku,
+                    productName  = p.ProductName,
+                    categoryName = p.Category.CategoryName,
+                    qtyPieces    = variants.Sum(v => v.qtyPieces),
+                    qtyCases     = variants.Sum(v => v.qtyCases),
+                    colors       = variants
+                };
+            })
+            .Where(r => alertType == "out"
+                ? r.qtyPieces == 0 && r.qtyCases == 0
+                : r.qtyPieces > 0 && r.qtyPieces <= 10)
+            .ToList();
+
+        return Json(rows);
     }
 
     public async Task<IActionResult> MonthlyReport(int? year, int? month, string? category, string? search, int page = 1, int pageSize = 25)

@@ -606,4 +606,4 @@ C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.runtimeconfig.j
 C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.dll
 C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.pdb
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-aydydocarr-aydydocarr.gz
-C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-jgkhkjnm2z-jgkhkjnm2z.gz
+C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-bxb4ojoyqj-bxb4ojoyqj.gz

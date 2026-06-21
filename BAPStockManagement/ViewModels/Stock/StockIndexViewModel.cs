@@ -16,6 +16,10 @@ public class StockIndexViewModel
 
     public int TotalCases { get; set; }
 
+    public int OutOfStockCount { get; set; }
+
+    public int LowStockCount { get; set; }
+
     public int Page { get; set; } = 1;
 
     public int PageSize { get; set; } = 20;

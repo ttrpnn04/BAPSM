@@ -480,10 +480,23 @@ a:hover { color: var(--primary-hover); }
   flex-shrink: 0;
 }
 
-.stat-card.stat-primary .stat-icon { background: var(--primary-soft); color: var(--primary); }
-.stat-card.stat-success .stat-icon { background: var(--success-soft); color: var(--success); }
-.stat-card.stat-info    .stat-icon { background: var(--info-soft);    color: var(--info); }
-.stat-card.stat-warning .stat-icon { background: var(--warning-soft); color: var(--warning); }
+.stat-sub {
+  font-size: 0.72rem;
+  color: var(--text-3);
+  margin-top: 0.2rem;
+}
+
+.stat-card.stat-primary   .stat-icon { background: var(--primary-soft); color: var(--primary); }
+.stat-card.stat-success   .stat-icon { background: var(--success-soft); color: var(--success); }
+.stat-card.stat-info      .stat-icon { background: var(--info-soft);    color: var(--info); }
+.stat-card.stat-warning   .stat-icon { background: var(--warning-soft); color: var(--warning); }
+.stat-card.stat-danger    .stat-icon { background: #fee2e2;             color: #dc2626; }
+.stat-card.stat-secondary .stat-icon { background: #f4f4f5;             color: var(--text-3); }
+
+.stat-card.stat-warning .stat-value { color: #d97706; }
+.stat-card.stat-danger  .stat-value { color: #dc2626; }
+.stat-card.stat-clickable { cursor: pointer; }
+.stat-card.stat-clickable:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
 
 /* ── Filter bar ──────────────────────────────────────────────────── */
 .filter-bar {
