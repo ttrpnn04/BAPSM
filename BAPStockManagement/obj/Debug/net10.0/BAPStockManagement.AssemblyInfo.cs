@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BAPStockManagement")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+949c0e033b1acc567ec6acea03aa8b68c35c2bff")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+01d840a9b36b238abac69bcd65c732323b559bc3")]
 [assembly: System.Reflection.AssemblyProductAttribute("BAPStockManagement")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BAPStockManagement")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

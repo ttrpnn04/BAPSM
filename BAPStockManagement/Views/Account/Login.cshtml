@@ -19,13 +19,14 @@
         <!-- Logo -->
         <div class="login-logo-row">
             <div class="login-logo-icon"><i class="bi bi-box-seam"></i></div>
-            <span class="login-logo-name">BAP Stock</span>
+            <span class="login-logo-name">BAP Stock Management</span>
+            <span class="login-logo-subtitle">ระบบจัดการสต็อกสินค้า</span>
         </div>
 
         <!-- Card -->
         <div class="login-card">
-            <h2>ยินดีต้อนรับ</h2>
-            <p class="login-sub">กรุณาเข้าสู่ระบบเพื่อดำเนินการต่อ</p>
+            <h2>เข้าสู่ระบบ</h2>
+            <p class="login-sub">กรุณากรอก Email และรหัสผ่านเพื่อดำเนินการต่อ</p>
 
             <form asp-action="Login" method="post">
                 <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
@@ -33,17 +34,17 @@
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-3" role="alert"></div>
 
                 <div class="mb-3">
-                    <label asp-for="Email" class="form-label"></label>
+                    <label asp-for="Email" class="form-label">Email</label>
                     <div class="field-icon-wrap">
                         <i class="bi bi-envelope field-icon"></i>
                         <input asp-for="Email" class="form-control" autocomplete="username"
                                placeholder="name@company.com" />
                     </div>
-                    <span asp-validation-for="Email" class="text-danger" style="font-size:.8rem"></span>
+                    <span asp-validation-for="Email" class="text-danger" style="font-size:.78rem"></span>
                 </div>
 
                 <div class="mb-3">
-                    <label asp-for="Password" class="form-label"></label>
+                    <label asp-for="Password" class="form-label">รหัสผ่าน</label>
                     <div class="field-icon-wrap">
                         <i class="bi bi-lock field-icon"></i>
                         <input asp-for="Password" class="form-control has-eye" autocomplete="current-password"
@@ -52,21 +53,23 @@
                             <i class="bi bi-eye-slash" id="eyeIcon"></i>
                         </button>
                     </div>
-                    <span asp-validation-for="Password" class="text-danger" style="font-size:.8rem"></span>
+                    <span asp-validation-for="Password" class="text-danger" style="font-size:.78rem"></span>
                 </div>
 
-                <div class="mb-4 form-check">
-                    <input asp-for="RememberMe" class="form-check-input" />
-                    <label asp-for="RememberMe" class="form-check-label" style="font-size:.875rem"></label>
+                <div class="mb-4 d-flex align-items-center justify-content-between">
+                    <div class="form-check mb-0">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <label asp-for="RememberMe" class="form-check-label" style="font-size:.8rem">จดจำการเข้าสู่ระบบ</label>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-login-submit">
-                    เข้าสู่ระบบ
+                    <i class="bi bi-box-arrow-in-right me-1"></i>เข้าสู่ระบบ
                 </button>
             </form>
         </div>
 
-        <p class="login-footer">&copy; 2026 BAP Stock Management</p>
+        <p class="login-footer">&copy; 2026 BAP Stock Management · All rights reserved</p>
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
@@ -74,7 +77,7 @@
     <script>
         document.getElementById('togglePassword')?.addEventListener('click', function () {
             const input = document.getElementById('passwordInput');
-            const icon = document.getElementById('eyeIcon');
+            const icon  = document.getElementById('eyeIcon');
             const isHidden = input.type === 'password';
             input.type = isHidden ? 'text' : 'password';
             icon.className = isHidden ? 'bi bi-eye' : 'bi bi-eye-slash';

@@ -17,14 +17,36 @@
         var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
     }
 
+    <!-- ── Top Header Bar ── -->
+    <header class="app-header">
+        <button type="button" class="header-toggle" id="sidebarCollapseToggle" aria-label="หุบ/ขยายเมนู">
+            <i class="bi bi-list"></i>
+        </button>
+        <div class="header-brand">
+            <div class="header-brand-icon"><i class="bi bi-box-seam"></i></div>
+            <span>BAP Stock Management</span>
+        </div>
+        <div class="header-right">
+            @if (isSignedIn)
+            {
+                <div class="header-user">
+                    <div class="header-avatar">@initial</div>
+                    <span class="header-username d-none d-sm-inline">@email</span>
+                </div>
+                <form asp-controller="Account" asp-action="Logout" method="post" class="d-flex">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="header-logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span class="d-none d-sm-inline">ออกจากระบบ</span>
+                    </button>
+                </form>
+            }
+        </div>
+    </header>
+
     <div class="app-shell">
         <!-- ── Sidebar ── -->
         <aside class="sidebar" id="sidebar">
-            <button type="button" class="sb-brand" id="sidebarCollapseToggle" aria-label="หุบ/ขยายเมนู">
-                <span class="sb-logo"><i class="bi bi-box-seam"></i></span>
-                <span class="sb-brand-name">BAP Stock</span>
-            </button>
-
             <nav class="sb-nav">
                 <a class="sb-link" href="/Home/Index" data-match="/home,/">
                     <i class="bi bi-house"></i><span>หน้าแรก</span>
@@ -45,6 +67,10 @@
                     </a>
                     @if (isAdmin)
                     {
+                        <div class="sb-section-label">จัดการ</div>
+                        <a class="sb-link" href="/Products/Index" data-match="/products">
+                            <i class="bi bi-tags"></i><span>สินค้า</span>
+                        </a>
                         <a class="sb-link" href="/Categories/Index" data-match="/categories">
                             <i class="bi bi-folder2"></i><span>หมวดหมู่</span>
                         </a>
@@ -61,41 +87,16 @@
                     }
                 }
             </nav>
-
-            @if (isSignedIn)
-            {
-                <div class="sb-user">
-                    <div class="sb-user-info">
-                        <div class="sb-avatar">@initial</div>
-                        <span class="sb-user-name">@email</span>
-                    </div>
-                    <form asp-controller="Account" asp-action="Logout" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="sb-logout">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>ออกจากระบบ</span>
-                        </button>
-                    </form>
-                </div>
-            }
         </aside>
 
         <!-- ── Main area ── -->
         <div class="app-main">
-            <!-- Mobile topbar -->
-            <div class="mobile-topbar">
-                <button class="sb-toggle" id="sidebarToggle" aria-label="เปิดเมนู">
-                    <i class="bi bi-list"></i>
-                </button>
-                <span class="mobile-topbar-brand">BAP Stock</span>
-            </div>
-
             <main class="main-content">
                 @await Html.PartialAsync("_FlashMessages")
                 @RenderBody()
             </main>
 
-            <footer style="padding:.75rem 1.5rem;font-size:.78rem;color:var(--text-3);border-top:1px solid var(--border-light);">
+            <footer style="padding:.55rem 1.25rem;font-size:.75rem;color:var(--text-3);border-top:1px solid var(--border-light);background:var(--surface);">
                 &copy; 2026 BAP Stock Management
             </footer>
         </div>
