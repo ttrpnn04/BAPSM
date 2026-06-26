@@ -39,6 +39,8 @@
                             <span data-variant-id="@variant.VariantId"
                                   data-product-id="@variant.ProductId"
                                   data-sku="@variant.Sku"
+                                  data-qty-pieces="@variant.QtyPieces"
+                                  data-qty-cases="@variant.QtyCases"
                                   data-label="@variant.Label"></span>
                         }
                     </div>
@@ -54,6 +56,7 @@
                             var isChecked = Model.TransactionTypeId == type.TransactionTypeId;
                             <label class="txn-type-pill @(isIn ? "txn-type-pill--in" : "txn-type-pill--out") @(isChecked ? "is-checked" : "")">
                                 <input type="radio" name="TransactionTypeId" value="@type.TransactionTypeId"
+                                       data-direction="@type.Direction"
                                        @(isChecked ? "checked" : "") />
                                 <i class="bi @(isIn ? "bi-arrow-down-circle" : "bi-arrow-up-circle")"></i>
                                 @type.TypeName
@@ -181,6 +184,8 @@
                 variantId: el.dataset.variantId,
                 productId: el.dataset.productId,
                 sku:       el.dataset.sku,
+                qtyPieces: Number.parseInt(el.dataset.qtyPieces || '0', 10),
+                qtyCases:  Number.parseInt(el.dataset.qtyCases || '0', 10),
                 label:     el.dataset.label,
             }));
 
@@ -200,13 +205,26 @@
             });
         }
 
+        function currentDirection() {
+            const checkedType = form.querySelector('input[name="TransactionTypeId"]:checked');
+            return Number.parseInt(checkedType?.dataset.direction || '0', 10);
+        }
+
         function buildChips(productId) {
-            const filtered = allVariants.filter(v => v.productId === productId);
+            const direction = currentDirection();
+            const isSale = direction < 0;
+            const filtered = allVariants.filter(v =>
+                v.productId === productId &&
+                (!isSale || v.qtyPieces > 0 || v.qtyCases > 0)
+            );
             variantChips.innerHTML = '';
+            variantHidden.value = '';
 
             if (!filtered.length) {
                 variantChips.innerHTML = productId
-                    ? '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>'
+                    ? (isSale
+                        ? '<span class="text-muted small fst-italic">ไม่มีสี/รุ่นที่มีสต็อก</span>'
+                        : '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>')
                     : '<span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>';
                 return;
             }
@@ -220,12 +238,15 @@
                 btn.style.setProperty('--chip-bg',   col.bg);
                 btn.style.setProperty('--chip-text', col.text);
                 btn.style.setProperty('--chip-dot',  col.dot);
-                if (v.variantId === initialVariantId) btn.classList.add('is-selected');
+                if (v.variantId === initialVariantId) {
+                    btn.classList.add('is-selected');
+                    variantHidden.value = v.variantId;
+                }
 
                 btn.innerHTML = `
                     <code class="variant-chip-btn__sku">${v.sku}</code>
-                    <span class="color-swatch color-swatch--variant-choice" title="${v.label}">
-                        <span class="color-swatch__fill"></span>
+                    <span class="color-swatch color-swatch--variant-choice" title="${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง">
+                        <span class="color-swatch__fill">${isSale ? v.qtyPieces.toLocaleString() : ''}</span>
                         <span class="color-swatch__label">${v.label}</span>
                     </span>`;
                 btn.addEventListener('click', () => selectVariant(btn, v.variantId));
@@ -313,7 +334,6 @@
         }
 
         productSelect.addEventListener('change', () => {
-            variantHidden.value = '';
             buildChips(productSelect.value);
         });
 
@@ -343,6 +363,7 @@
             radio.addEventListener('change', () => {
                 document.querySelectorAll('.txn-type-pill').forEach(p => p.classList.remove('is-checked'));
                 if (radio.checked) radio.closest('.txn-type-pill').classList.add('is-checked');
+                buildChips(productSelect.value);
             });
         });
     })();

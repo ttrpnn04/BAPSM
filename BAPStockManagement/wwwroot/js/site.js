@@ -75,6 +75,117 @@
     }, 4000);
   });
 
+  /* ── Auto-submit filter bars ── */
+  document.querySelectorAll('.filter-bar form[method="get"]').forEach(function (form) {
+    var debounceTimer = null;
+    var suggestTimer = null;
+    var isComposing = false;
+
+    function submitFilter() {
+      window.clearTimeout(debounceTimer);
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        form.submit();
+      }
+    }
+
+    function submitFilterSoon() {
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(submitFilter, 650);
+    }
+
+    form.querySelectorAll('select, input[type="date"], input[type="number"]').forEach(function (control) {
+      control.addEventListener('change', submitFilter);
+    });
+
+    function attachSuggestions(control) {
+      var wrap = document.createElement('div');
+      var list = document.createElement('div');
+      wrap.className = 'search-suggest-wrap';
+      list.className = 'search-suggest-list d-none';
+
+      control.parentNode.insertBefore(wrap, control);
+      wrap.appendChild(control);
+      wrap.appendChild(list);
+
+      function hideSuggestions() {
+        list.classList.add('d-none');
+        list.innerHTML = '';
+      }
+
+      function renderSuggestions(items) {
+        list.innerHTML = '';
+        if (!items.length) {
+          hideSuggestions();
+          return;
+        }
+
+        items.forEach(function (item) {
+          var button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'search-suggest-item';
+          button.textContent = item;
+          button.addEventListener('mousedown', function (event) {
+            event.preventDefault();
+            control.value = item;
+            hideSuggestions();
+            submitFilter();
+          });
+          list.appendChild(button);
+        });
+
+        list.classList.remove('d-none');
+      }
+
+      function fetchSuggestions() {
+        var value = control.value.trim();
+        if (value.length < 1) {
+          hideSuggestions();
+          return;
+        }
+
+        fetch('/Search/Suggestions?term=' + encodeURIComponent(value), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+          .then(function (response) { return response.ok ? response.json() : []; })
+          .then(renderSuggestions)
+          .catch(hideSuggestions);
+      }
+
+      control.addEventListener('input', function () {
+        window.clearTimeout(suggestTimer);
+        if (!isComposing) {
+          suggestTimer = window.setTimeout(fetchSuggestions, 180);
+        }
+      });
+
+      control.addEventListener('focus', fetchSuggestions);
+      control.addEventListener('blur', function () {
+        window.setTimeout(hideSuggestions, 120);
+      });
+    }
+
+    form.querySelectorAll('input[type="text"], input[type="search"]').forEach(function (control) {
+      control.addEventListener('compositionstart', function () {
+        isComposing = true;
+      });
+
+      control.addEventListener('compositionend', function () {
+        isComposing = false;
+        submitFilterSoon();
+      });
+
+      control.addEventListener('input', function () {
+        if (!isComposing) submitFilterSoon();
+      });
+
+      if (control.name === 'search') {
+        attachSuggestions(control);
+      }
+    });
+  });
+
   var palette = [
     { keys: ['ดำ'], bg: '#1e293b', text: '#f8fafc', dot: '#94a3b8' },
     { keys: ['แดง'], bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },

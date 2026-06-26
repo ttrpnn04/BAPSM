@@ -27,6 +27,8 @@
                 <span data-variant-id="@v.VariantId"
                       data-product-id="@v.ProductId"
                       data-sku="@v.Sku"
+                      data-qty-pieces="@v.QtyPieces"
+                      data-qty-cases="@v.QtyCases"
                       data-label="@v.Label"></span>
             }
         </div>
@@ -40,7 +42,8 @@
                 var isIn      = type.Direction > 0;
                 var isChecked = Model.TransactionTypeId == type.TransactionTypeId;
                 <label class="txn-type-pill @(isIn ? "txn-type-pill--in" : "txn-type-pill--out") @(isChecked ? "is-checked" : "")">
-                    <input type="radio" name="TransactionTypeId" value="@type.TransactionTypeId" @(isChecked ? "checked" : "") />
+                    <input type="radio" name="TransactionTypeId" value="@type.TransactionTypeId"
+                           data-direction="@type.Direction" @(isChecked ? "checked" : "") />
                     <i class="bi @(isIn ? "bi-arrow-down-circle" : "bi-arrow-up-circle")"></i>
                     @type.TypeName
                 </label>

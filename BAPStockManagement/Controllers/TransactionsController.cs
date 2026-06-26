@@ -475,7 +475,7 @@ public class TransactionsController : Controller
 
     [Authorize(Roles = AppRoles.StockEdit)]
     [HttpGet]
-    public async Task<IActionResult> CreateModal(int? variantId, int? productId)
+    public async Task<IActionResult> CreateModal(int? variantId, int? productId, short? direction)
     {
         var selectedVariantId = variantId;
         if (!selectedVariantId.HasValue && productId.HasValue)
@@ -495,10 +495,20 @@ public class TransactionsController : Controller
 
         await PopulateCreateLookupsAsync(selectedVariantId);
 
+        var selectedTransactionTypeId = direction.HasValue
+            ? await _context.TransactionTypes
+                .AsNoTracking()
+                .Where(t => t.IsActive && t.Direction == direction.Value)
+                .OrderBy(t => t.TransactionTypeId)
+                .Select(t => t.TransactionTypeId)
+                .FirstOrDefaultAsync()
+            : 0;
+
         return PartialView("_CreateModal", new CreateTransactionViewModel
         {
             ProductId = selectedProductId,
-            VariantId = selectedVariantId ?? 0
+            VariantId = selectedVariantId ?? 0,
+            TransactionTypeId = selectedTransactionTypeId
         });
     }
 
@@ -585,7 +595,11 @@ public class TransactionsController : Controller
 
         var variants = await _context.ProductVariants
             .Include(v => v.StockBalance)
-            .Where(v => variantIds.Contains(v.VariantId) && v.IsActive)
+            .Where(v =>
+                variantIds.Contains(v.VariantId) &&
+                v.IsActive &&
+                v.Product.IsActive &&
+                v.Product.Category.IsActive)
             .ToDictionaryAsync(v => v.VariantId);
 
         if (variants.Count != variantIds.Count)
@@ -662,6 +676,8 @@ public class TransactionsController : Controller
             .Where(v =>
                 v.ProductId == productId &&
                 v.IsActive &&
+                v.Product.IsActive &&
+                v.Product.Category.IsActive &&
                 v.VariantName != ProductVariantDefaults.StandardVariantName)
             .OrderBy(v => v.SortOrder)
             .Select(v => (int?)v.VariantId)
@@ -672,9 +688,10 @@ public class TransactionsController : Controller
         }
 
         var product = await _context.Products
+            .Include(p => p.Category)
             .Include(p => p.ProductVariants)
                 .ThenInclude(v => v.StockBalance)
-            .FirstOrDefaultAsync(p => p.ProductId == productId && p.IsActive);
+            .FirstOrDefaultAsync(p => p.ProductId == productId && p.IsActive && p.Category.IsActive);
         if (product == null)
         {
             return null;
@@ -695,7 +712,7 @@ public class TransactionsController : Controller
         var products = await _context.Products
             .AsNoTracking()
             .Include(p => p.Category)
-            .Where(p => p.IsActive && p.ProductVariants.Any(v => v.IsActive))
+            .Where(p => p.IsActive && p.Category.IsActive && p.ProductVariants.Any(v => v.IsActive))
             .OrderBy(p => p.Category.SortOrder)
             .ThenBy(p => p.Category.CategoryName)
             .ThenBy(p => p.ProductName)
@@ -720,7 +737,7 @@ public class TransactionsController : Controller
             .AsNoTracking()
             .Include(v => v.Product)
                 .ThenInclude(p => p.Category)
-            .Where(v => v.IsActive && v.Product.IsActive)
+            .Where(v => v.IsActive && v.Product.IsActive && v.Product.Category.IsActive)
             .OrderBy(v => v.Product.Category.SortOrder)
             .ThenBy(v => v.Product.Category.CategoryName)
             .ThenBy(v => v.Product.ProductName)
@@ -730,6 +747,8 @@ public class TransactionsController : Controller
                 v.VariantId,
                 v.ProductId,
                 v.Product.Sku,
+                QtyPieces = v.StockBalance != null ? v.StockBalance.QtyPieces : 0,
+                QtyCases = v.StockBalance != null ? v.StockBalance.QtyCases : 0,
                 Label = v.VariantName
             })
             .ToListAsync();

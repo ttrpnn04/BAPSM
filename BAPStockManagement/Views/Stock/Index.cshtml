@@ -11,8 +11,11 @@
     <div class="page-actions">
         @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
         {
-            <button type="button" class="btn btn-success open-txn-modal">
-                <i class="bi bi-plus-circle me-1"></i>บันทึกรายการ
+            <button type="button" class="btn btn-success open-txn-modal" data-direction="1">
+                <i class="bi bi-arrow-down-circle me-1"></i>รับเข้า
+            </button>
+            <button type="button" class="btn btn-outline-danger open-txn-modal" data-direction="-1">
+                <i class="bi bi-arrow-up-circle me-1"></i>ขายออก
             </button>
             <a asp-controller="Products" asp-action="Create" class="btn btn-primary">
                 <i class="bi bi-box-seam me-1"></i>เพิ่มสินค้าใหม่
@@ -164,7 +167,6 @@ else
                         <th class="text-end">ลัง</th>
                         <th>หน่วย</th>
                         <th>อัปเดตล่าสุด</th>
-                        <th class="text-end">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -207,25 +209,6 @@ else
                                 else
                                 {
                                     <span>-</span>
-                                }
-                            </td>
-                            <td class="text-end">
-                                @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
-                                {
-                                    if (item.PrimaryVariantId.HasValue)
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-success open-txn-modal"
-                                                data-variant-id="@item.PrimaryVariantId.Value">
-                                            <i class="bi bi-plus-circle me-1"></i>บันทึกรายการ
-                                        </button>
-                                    }
-                                    else
-                                    {
-                                        <button type="button" class="btn btn-sm btn-outline-success open-txn-modal"
-                                                data-product-id="@item.ProductId">
-                                            <i class="bi bi-plus-circle me-1"></i>บันทึกรายการ
-                                        </button>
-                                    }
                                 }
                             </td>
                         </tr>
@@ -364,6 +347,8 @@ else
                 variantId: el.dataset.variantId,
                 productId: el.dataset.productId,
                 sku: el.dataset.sku,
+                qtyPieces: Number.parseInt(el.dataset.qtyPieces || '0', 10),
+                qtyCases: Number.parseInt(el.dataset.qtyCases || '0', 10),
                 label: el.dataset.label
             }));
 
@@ -383,12 +368,25 @@ else
             });
         }
 
+        function currentDirection() {
+            const checkedType = form.querySelector('input[name="TransactionTypeId"]:checked');
+            return Number.parseInt(checkedType?.dataset.direction || '0', 10);
+        }
+
         function buildChips(productId) {
-            const filtered = allVariants.filter(v => v.productId === productId);
+            const direction = currentDirection();
+            const isSale = direction < 0;
+            const filtered = allVariants.filter(v =>
+                v.productId === productId &&
+                (!isSale || v.qtyPieces > 0 || v.qtyCases > 0)
+            );
             variantChips.innerHTML = '';
+            variantHidden.value = '';
             if (!filtered.length) {
                 variantChips.innerHTML = productId
-                    ? '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>'
+                    ? (isSale
+                        ? '<span class="text-muted small fst-italic">ไม่มีสี/รุ่นที่มีสต็อก</span>'
+                        : '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>')
                     : '<span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>';
                 return;
             }
@@ -401,11 +399,14 @@ else
                 btn.style.setProperty('--chip-bg',   col.bg);
                 btn.style.setProperty('--chip-text', col.text);
                 btn.style.setProperty('--chip-dot',  col.dot);
-                if (v.variantId === initialVariantId) btn.classList.add('is-selected');
+                if (v.variantId === initialVariantId) {
+                    btn.classList.add('is-selected');
+                    variantHidden.value = v.variantId;
+                }
                 btn.innerHTML = `
                     <code class="variant-chip-btn__sku">${v.sku}</code>
-                    <span class="color-swatch color-swatch--variant-choice" title="${v.label}">
-                        <span class="color-swatch__fill"></span>
+                    <span class="color-swatch color-swatch--variant-choice" title="${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง">
+                        <span class="color-swatch__fill">${isSale ? v.qtyPieces.toLocaleString() : ''}</span>
                         <span class="color-swatch__label">${v.label}</span>
                     </span>`;
                 btn.addEventListener('click', () => selectVariant(btn, v.variantId));
@@ -493,7 +494,6 @@ else
         }
 
         productSelect.addEventListener('change', () => {
-            variantHidden.value = '';
             buildChips(productSelect.value);
         });
         productSearch.addEventListener('input', () => filterProducts(productSearch.value));
@@ -512,6 +512,7 @@ else
             radio.addEventListener('change', () => {
                 document.querySelectorAll('.txn-type-pill').forEach(p => p.classList.remove('is-checked'));
                 if (radio.checked) radio.closest('.txn-type-pill').classList.add('is-checked');
+                buildChips(productSelect.value);
             });
         });
 
@@ -571,9 +572,11 @@ else
         btn.addEventListener('click', async () => {
             const variantId = btn.dataset.variantId;
             const productId = btn.dataset.productId;
+            const direction = btn.dataset.direction;
             const params = new URLSearchParams();
             if (variantId) params.set('variantId', variantId);
             if (productId) params.set('productId', productId);
+            if (direction) params.set('direction', direction);
             const query = params.toString();
             const url = '@Url.Action("CreateModal", "Transactions")' + (query ? `?${query}` : '');
 
