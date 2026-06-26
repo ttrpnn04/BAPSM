@@ -1,12 +1,19 @@
 @model BAPStockManagement.ViewModels.Stock.MonthlyReportViewModel
 @{
     ViewData["Title"] = "รายงานสรุปรายเดือน";
+    var exportFrom = new DateTime(Model.Year, Model.Month, 1);
+    var exportTo = exportFrom.AddMonths(1).AddDays(-1);
 }
 
 <div class="page-header">
     <div>
         <h1>รายงานสรุปรายเดือน</h1>
         <p class="subtitle">สรุปการเคลื่อนไหวสต็อก @Model.MonthLabel</p>
+    </div>
+    <div class="page-actions">
+        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#exportReportModal">
+            <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </button>
     </div>
 </div>
 
@@ -185,6 +192,40 @@ else
         </nav>
     </div>
 }
+
+<div class="modal fade" id="exportReportModal" tabindex="-1" aria-labelledby="exportReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-controller="Transactions" asp-action="ExportDailyReport" method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportReportModalLabel">
+                        <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        เลือกช่วงวันที่สำหรับ export รายงานรับเข้า ขายออก และยอดคงเหลือ
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">จากวันที่</label>
+                        <input type="date" name="fromDate" value="@exportFrom.ToString("yyyy-MM-dd")" class="form-control" />
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">ถึงวันที่</label>
+                        <input type="date" name="toDate" value="@exportTo.ToString("yyyy-MM-dd")" class="form-control" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-download me-1"></i>Export
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
 <script>
