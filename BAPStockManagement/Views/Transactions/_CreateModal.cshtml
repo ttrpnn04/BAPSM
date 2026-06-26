@@ -37,15 +37,23 @@
     <div class="mb-3">
         <label class="form-label fw-medium">ประเภทรายการ <span class="text-danger">*</span></label>
         <div class="txn-type-group">
-            @foreach (var type in (IEnumerable<BAPStockManagement.Models.TransactionType>)ViewBag.TransactionTypesList)
+            @{
+                var transactionTypes = ((IEnumerable<BAPStockManagement.Models.TransactionType>)ViewBag.TransactionTypesList).ToList();
+            }
+            @for (var i = 0; i < transactionTypes.Count; i++)
             {
+                var type      = transactionTypes[i];
                 var isIn      = type.Direction > 0;
                 var isChecked = Model.TransactionTypeId == type.TransactionTypeId;
+                var sameDirectionIndex = transactionTypes.Take(i).Count(t => t.Direction == type.Direction);
+                var typeLabel = isIn
+                    ? (sameDirectionIndex == 0 ? "รับสต็อกเข้า" : "ปรับยอดเพิ่ม")
+                    : (sameDirectionIndex == 0 ? "ขายออก" : "ปรับยอดลง");
                 <label class="txn-type-pill @(isIn ? "txn-type-pill--in" : "txn-type-pill--out") @(isChecked ? "is-checked" : "")">
                     <input type="radio" name="TransactionTypeId" value="@type.TransactionTypeId"
                            data-direction="@type.Direction" @(isChecked ? "checked" : "") />
                     <i class="bi @(isIn ? "bi-arrow-down-circle" : "bi-arrow-up-circle")"></i>
-                    @type.TypeName
+                    @typeLabel
                 </label>
             }
         </div>

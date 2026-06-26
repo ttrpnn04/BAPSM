@@ -493,16 +493,30 @@ public class TransactionsController : Controller
                 .FirstOrDefaultAsync();
         }
 
-        await PopulateCreateLookupsAsync(selectedVariantId);
+        await PopulateCreateLookupsAsync(selectedVariantId, direction);
 
-        var selectedTransactionTypeId = direction.HasValue
-            ? await _context.TransactionTypes
+        var selectedTransactionTypeId = 0;
+        if (direction.HasValue)
+        {
+            var selectedTypeQuery = _context.TransactionTypes
                 .AsNoTracking()
-                .Where(t => t.IsActive && t.Direction == direction.Value)
-                .OrderBy(t => t.TransactionTypeId)
-                .Select(t => t.TransactionTypeId)
-                .FirstOrDefaultAsync()
-            : 0;
+                .Where(t => t.IsActive && t.Direction == direction.Value);
+
+            if (direction.Value > 0)
+            {
+                selectedTransactionTypeId = await selectedTypeQuery
+                    .OrderBy(t => t.TransactionTypeId)
+                    .Select(t => t.TransactionTypeId)
+                    .FirstOrDefaultAsync();
+            }
+            else
+            {
+                selectedTransactionTypeId = await selectedTypeQuery
+                    .OrderBy(t => t.TransactionTypeId)
+                    .Select(t => t.TransactionTypeId)
+                    .FirstOrDefaultAsync();
+            }
+        }
 
         return PartialView("_CreateModal", new CreateTransactionViewModel
         {
@@ -707,7 +721,7 @@ public class TransactionsController : Controller
             .FirstOrDefault();
     }
 
-    private async Task PopulateCreateLookupsAsync(int? selectedVariantId = null)
+    private async Task PopulateCreateLookupsAsync(int? selectedVariantId = null, short? modalDirection = null)
     {
         var products = await _context.Products
             .AsNoTracking()
@@ -756,8 +770,16 @@ public class TransactionsController : Controller
         ViewBag.Variants = variants;
         ViewBag.SelectedVariantId = selectedVariantId;
 
-        var types = await _context.TransactionTypes
+        var typesQuery = _context.TransactionTypes
             .Where(t => t.IsActive)
+            .AsQueryable();
+
+        if (modalDirection.HasValue)
+        {
+            typesQuery = typesQuery.Where(t => t.Direction == modalDirection.Value);
+        }
+
+        var types = await typesQuery
             .OrderBy(t => t.TransactionTypeId)
             .ToListAsync();
 

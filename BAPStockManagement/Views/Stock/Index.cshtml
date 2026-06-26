@@ -12,10 +12,10 @@
         @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
         {
             <button type="button" class="btn btn-success open-txn-modal" data-direction="1">
-                <i class="bi bi-arrow-down-circle me-1"></i>รับเข้า
+                <i class="bi bi-arrow-down-circle me-1"></i>รับ
             </button>
             <button type="button" class="btn btn-outline-danger open-txn-modal" data-direction="-1">
-                <i class="bi bi-arrow-up-circle me-1"></i>ขายออก
+                <i class="bi bi-arrow-up-circle me-1"></i>ออก
             </button>
             <a asp-controller="Products" asp-action="Create" class="btn btn-primary">
                 <i class="bi bi-box-seam me-1"></i>เพิ่มสินค้าใหม่
