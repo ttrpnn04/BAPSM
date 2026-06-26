@@ -80,7 +80,14 @@
             @foreach (var variant in Model.Variants)
             {
                 <tr class="@(!variant.IsActive ? "table-secondary" : "")">
-                    <td>@variant.VariantName</td>
+                    <td>
+                        <span class="color-swatch color-swatch--table @(!variant.IsActive ? "color-swatch--empty" : "")"
+                              data-vname="@variant.VariantName"
+                              title="@variant.VariantName — @variant.QtyPieces.ToString("N0") ชิ้น">
+                            <span class="color-swatch__fill">@(variant.QtyPieces > 0 ? variant.QtyPieces.ToString("N0") : "")</span>
+                            <span class="color-swatch__label">@variant.VariantName</span>
+                        </span>
+                    </td>
                     <td class="text-end">@variant.QtyPieces.ToString("N0")</td>
                     <td class="text-end">@variant.QtyCases.ToString("N0")</td>
                     <td>

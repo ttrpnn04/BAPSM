@@ -199,10 +199,33 @@ public class TransactionsController : Controller
     public async Task<IActionResult> Create(CreateTransactionViewModel model)
     {
         var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+        var hasLineItems = model.Lines.Any(l => l.VariantId > 0 || l.QtyPieces > 0 || l.QtyCases > 0);
+
+        if (hasLineItems)
+        {
+            ModelState.Remove(nameof(model.ProductId));
+            ModelState.Remove(nameof(model.VariantId));
+            ModelState.Remove(nameof(model.QtyPieces));
+            ModelState.Remove(nameof(model.QtyCases));
+        }
 
         if (!isAjax) await PopulateCreateLookupsAsync(model.VariantId);
 
-        if (model.QtyPieces == 0 && model.QtyCases == 0)
+        var submittedLines = hasLineItems
+            ? model.Lines
+                .Where(l => l.VariantId > 0 && (l.QtyPieces > 0 || l.QtyCases > 0))
+                .ToList()
+            : new List<CreateTransactionLineViewModel>
+            {
+                new CreateTransactionLineViewModel
+                {
+                    VariantId = model.VariantId,
+                    QtyPieces = model.QtyPieces,
+                    QtyCases = model.QtyCases
+                }
+            };
+
+        if (submittedLines.Count == 0)
         {
             ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้นหรือลังอย่างน้อย 1 รายการ");
         }
@@ -217,18 +240,24 @@ public class TransactionsController : Controller
             return View(model);
         }
 
-        var variant = await _context.ProductVariants
-            .Include(v => v.StockBalance)
-            .FirstOrDefaultAsync(v => v.VariantId == model.VariantId && v.IsActive);
+        var variantIds = submittedLines
+            .Select(l => l.VariantId)
+            .Distinct()
+            .ToList();
 
-        if (variant == null)
+        var variants = await _context.ProductVariants
+            .Include(v => v.StockBalance)
+            .Where(v => variantIds.Contains(v.VariantId) && v.IsActive)
+            .ToDictionaryAsync(v => v.VariantId);
+
+        if (variants.Count != variantIds.Count)
         {
             if (isAjax) return BadRequest(new { message = "ไม่พบสินค้าที่เลือก" });
             ModelState.AddModelError(nameof(model.VariantId), "ไม่พบสินค้าที่เลือก");
             return View(model);
         }
 
-        if (model.ProductId.HasValue && variant.ProductId != model.ProductId.Value)
+        if (!hasLineItems && model.ProductId.HasValue && variants[model.VariantId].ProductId != model.ProductId.Value)
         {
             if (isAjax) return BadRequest(new { message = "สี/รุ่นไม่ตรงกับสินค้าที่เลือก" });
             ModelState.AddModelError(nameof(model.VariantId), "สี/รุ่นไม่ตรงกับสินค้าที่เลือก");
@@ -247,36 +276,45 @@ public class TransactionsController : Controller
 
         if (txnType.Direction < 0)
         {
-            var balance = variant.StockBalance;
-            var currentPieces = balance?.QtyPieces ?? 0;
-            var currentCases = balance?.QtyCases ?? 0;
-
-            if (model.QtyPieces > currentPieces || model.QtyCases > currentCases)
+            foreach (var group in submittedLines.GroupBy(l => l.VariantId))
             {
-                var msg = $"สต็อกไม่เพียงพอ (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)";
-                if (isAjax) return BadRequest(new { message = msg });
-                ModelState.AddModelError(string.Empty, msg);
-                return View(model);
+                var variant = variants[group.Key];
+                var currentPieces = variant.StockBalance?.QtyPieces ?? 0;
+                var currentCases = variant.StockBalance?.QtyCases ?? 0;
+                var requestedPieces = group.Sum(l => l.QtyPieces);
+                var requestedCases = group.Sum(l => l.QtyCases);
+
+                if (requestedPieces > currentPieces || requestedCases > currentCases)
+                {
+                    var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)";
+                    if (isAjax) return BadRequest(new { message = msg });
+                    ModelState.AddModelError(string.Empty, msg);
+                    return View(model);
+                }
             }
         }
 
-        var transaction = new StockTransaction
-        {
-            VariantId = model.VariantId,
-            TransactionTypeId = model.TransactionTypeId,
-            TxnDate = model.TxnDate,
-            QtyPieces = model.QtyPieces,
-            QtyCases = model.QtyCases,
-            RefNo = string.IsNullOrWhiteSpace(model.RefNo) ? null : model.RefNo.Trim(),
-            Note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim(),
-            CreatedBy = _userManager.GetUserId(User)
-        };
+        var refNo = string.IsNullOrWhiteSpace(model.RefNo) ? null : model.RefNo.Trim();
+        var note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim();
+        var userId = _userManager.GetUserId(User);
+        var transactions = submittedLines.Select(line => new StockTransaction
+            {
+                VariantId = line.VariantId,
+                TransactionTypeId = model.TransactionTypeId,
+                TxnDate = model.TxnDate,
+                QtyPieces = line.QtyPieces,
+                QtyCases = line.QtyCases,
+                RefNo = refNo,
+                Note = note,
+                CreatedBy = userId
+            })
+            .ToList();
 
-        _context.StockTransactions.Add(transaction);
+        _context.StockTransactions.AddRange(transactions);
         await _context.SaveChangesAsync();
 
-        if (isAjax) return Ok(new { success = true });
-        TempData["Success"] = "บันทึกรายการสต็อกสำเร็จ";
+        if (isAjax) return Ok(new { success = true, count = transactions.Count });
+        TempData["Success"] = $"บันทึกรายการสต็อกสำเร็จ {transactions.Count:N0} รายการ";
         return RedirectToAction(nameof(Index));
     }
 
@@ -353,6 +391,7 @@ public class TransactionsController : Controller
             {
                 v.VariantId,
                 v.ProductId,
+                v.Product.Sku,
                 Label = v.VariantName
             })
             .ToListAsync();

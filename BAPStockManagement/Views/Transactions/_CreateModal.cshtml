@@ -7,6 +7,8 @@
 
     <div class="mb-3">
         <label class="form-label fw-medium">สินค้า <span class="text-danger">*</span></label>
+        <input type="search" id="productSearch" class="form-control form-control-sm mb-2"
+               placeholder="ค้นหาสินค้า..." autocomplete="off" />
         <select name="ProductId" id="productSelect" class="form-select"
                 asp-items="@((IEnumerable<SelectListItem>)ViewBag.Products)">
             <option value="">-- เลือกสินค้า --</option>
@@ -24,6 +26,7 @@
             {
                 <span data-variant-id="@v.VariantId"
                       data-product-id="@v.ProductId"
+                      data-sku="@v.Sku"
                       data-label="@v.Label"></span>
             }
         </div>
@@ -50,7 +53,7 @@
         <input type="date" name="TxnDate" class="form-control" value="@Model.TxnDate.ToString("yyyy-MM-dd")" />
     </div>
 
-    <div class="row g-3 mb-3">
+    <div class="row g-3 mb-3 align-items-end">
         <div class="col-6">
             <label class="form-label fw-medium">จำนวน (ชิ้น)</label>
             <input type="number" name="QtyPieces" class="form-control" value="@Model.QtyPieces" min="0" />
@@ -59,6 +62,29 @@
             <label class="form-label fw-medium">จำนวน (ลัง)</label>
             <input type="number" name="QtyCases" class="form-control" value="@Model.QtyCases" min="0" />
         </div>
+    </div>
+
+    <div class="mb-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="addTxnLineBtn">
+            <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
+        </button>
+        <div class="form-text">เพิ่มได้หลายสี/รุ่น แล้วกดบันทึกครั้งเดียว</div>
+    </div>
+
+    <div class="table-responsive mb-3 d-none" id="txnLinesWrap">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>รหัสสินค้า</th>
+                    <th>สี/รุ่น</th>
+                    <th class="text-end">ชิ้น</th>
+                    <th class="text-end">ลัง</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody id="txnLinesBody"></tbody>
+        </table>
+        <div id="txnLinesInputs"></div>
     </div>
 
     <div class="mb-3">

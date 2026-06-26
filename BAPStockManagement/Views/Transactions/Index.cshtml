@@ -100,9 +100,9 @@ else
                             <td>
                                 @if (!string.IsNullOrWhiteSpace(item.VariantName))
                                 {
-                                    <span class="color-chip" data-vname="@item.VariantName" title="@item.VariantName">
-                                        <span class="color-chip__dot"></span>
-                                        <span class="color-chip__name">@item.VariantName</span>
+                                    <span class="color-swatch color-swatch--table" data-vname="@item.VariantName" title="@item.VariantName">
+                                        <span class="color-swatch__fill"></span>
+                                        <span class="color-swatch__label">@item.VariantName</span>
                                     </span>
                                 }
                                 else

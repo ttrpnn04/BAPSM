@@ -605,5 +605,15 @@ C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.deps.json
 C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.runtimeconfig.json
 C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.dll
 C:\Users\Admin\AppData\Local\Temp\BAPSM-build\BAPStockManagement.pdb
-C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-plnxovdd4x-plnxovdd4x.gz
-C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-nlw9jdhy8q-nlw9jdhy8q.gz
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\appsettings.Development.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\appsettings.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\import_preview.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.staticwebassets.runtime.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.staticwebassets.endpoints.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.exe
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.deps.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.runtimeconfig.json
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.dll
+C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.pdb
+C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-6fe2ffrpjw-6fe2ffrpjw.gz
+C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-mfg3bx0uqd-mfg3bx0uqd.gz

@@ -36,4 +36,18 @@ public class CreateTransactionViewModel
     [MaxLength(300)]
     [Display(Name = "หมายเหตุ")]
     public string? Note { get; set; }
+
+    public List<CreateTransactionLineViewModel> Lines { get; set; } = [];
+}
+
+public class CreateTransactionLineViewModel
+{
+    [Range(1, int.MaxValue, ErrorMessage = "กรุณาเลือกสี/รุ่น")]
+    public int VariantId { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "จำนวนต้องไม่ติดลบ")]
+    public int QtyPieces { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "จำนวนต้องไม่ติดลบ")]
+    public int QtyCases { get; set; }
 }

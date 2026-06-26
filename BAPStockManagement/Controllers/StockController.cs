@@ -77,7 +77,11 @@ public class StockController : Controller
                         QtyPieces = v.StockBalance?.QtyPieces ?? 0,
                         QtyCases = v.StockBalance?.QtyCases ?? 0
                     })
-                    .OrderByDescending(v => v.QtyPieces)
+                    .OrderBy(v =>
+                    {
+                        var idx = Array.IndexOf(ProductVariantDefaults.ColorNames, v.VariantName);
+                        return idx >= 0 ? idx : 999;
+                    })
                     .ThenBy(v => v.VariantName)
                     .ToList();
 

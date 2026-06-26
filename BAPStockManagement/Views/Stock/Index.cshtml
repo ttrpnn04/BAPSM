@@ -11,6 +11,9 @@
     <div class="page-actions">
         @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
         {
+            <button type="button" class="btn btn-success open-txn-modal">
+                <i class="bi bi-plus-circle me-1"></i>บันทึกรายการ
+            </button>
             <a asp-controller="Products" asp-action="Create" class="btn btn-primary">
                 <i class="bi bi-box-seam me-1"></i>เพิ่มสินค้าใหม่
             </a>
@@ -175,23 +178,15 @@ else
                             <td>
                                 @if (item.Colors.Any())
                                 {
-                                    <div class="d-flex flex-wrap gap-1">
+                                    <div class="color-swatch-grid">
                                         @foreach (var color in item.Colors)
                                         {
-                                            var outOfStock = color.QtyPieces == 0;
-                                            <span class="color-chip @(outOfStock ? "color-chip--empty" : "")"
+                                            var colorEmpty = color.QtyPieces == 0;
+                                            <span class="color-swatch @(colorEmpty ? "color-swatch--empty" : "")"
                                                   data-vname="@color.VariantName"
-                                                  title="@color.VariantName — @color.QtyPieces.ToString("N0") ชิ้น">
-                                                <span class="color-chip__dot"></span>
-                                                <span class="color-chip__name">@color.VariantName</span>
-                                                @if (outOfStock)
-                                                {
-                                                    <span class="color-chip__qty color-chip__qty--zero">หมด</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="color-chip__qty">@color.QtyPieces.ToString("N0")</span>
-                                                }
+                                                  title="@color.VariantName — @(colorEmpty ? "หมด" : color.QtyPieces.ToString("N0") + " ชิ้น")">
+                                                <span class="color-swatch__fill">@(colorEmpty ? "" : color.QtyPieces.ToString("N0"))</span>
+                                                <span class="color-swatch__label">@color.VariantName</span>
                                             </span>
                                         }
                                     </div>
@@ -341,24 +336,60 @@ else
         chip.style.setProperty('--chip-dot',  col.dot);
     });
 
+    /* ── apply colors to Excel-style swatches ─────────────────── */
+    document.querySelectorAll('.color-swatch[data-vname]').forEach(swatch => {
+        const col = resolveColor(swatch.dataset.vname || '');
+        swatch.style.setProperty('--swatch-color', col.dot);
+    });
+
     /* ── modal: initialize form after AJAX load ───────────────── */
     function initModalForm() {
         const productSelect = document.getElementById('productSelect');
+        const productSearch = document.getElementById('productSearch');
         const variantChips  = document.getElementById('variantChips');
         const variantHidden = document.getElementById('variantHidden');
         const variantDataEl = document.getElementById('variantData');
-        if (!productSelect || !variantChips || !variantHidden || !variantDataEl) return;
+        const form          = document.getElementById('createTxnForm');
+        const qtyPiecesInput = form?.querySelector('[name="QtyPieces"]');
+        const qtyCasesInput  = form?.querySelector('[name="QtyCases"]');
+        const addLineBtn     = document.getElementById('addTxnLineBtn');
+        const linesWrap      = document.getElementById('txnLinesWrap');
+        const linesBody      = document.getElementById('txnLinesBody');
+        const linesInputs    = document.getElementById('txnLinesInputs');
+        if (!productSelect || !productSearch || !variantChips || !variantHidden || !variantDataEl ||
+            !form || !qtyPiecesInput || !qtyCasesInput || !addLineBtn || !linesWrap || !linesBody || !linesInputs) return;
 
         const allVariants = Array.from(variantDataEl.querySelectorAll('[data-variant-id]'))
-            .map(el => ({ variantId: el.dataset.variantId, productId: el.dataset.productId, label: el.dataset.label }));
+            .map(el => ({
+                variantId: el.dataset.variantId,
+                productId: el.dataset.productId,
+                sku: el.dataset.sku,
+                label: el.dataset.label
+            }));
 
         const initialVariantId = variantHidden.value;
+        const txnLines = [];
+
+        const productOptions = Array.from(productSelect.options).map(option => ({
+            option,
+            value: option.value,
+            text: option.textContent.toLowerCase(),
+        }));
+
+        function filterProducts(query) {
+            const term = query.trim().toLowerCase();
+            productOptions.forEach(({ option, value, text }) => {
+                option.hidden = !!value && !!term && !text.includes(term);
+            });
+        }
 
         function buildChips(productId) {
             const filtered = allVariants.filter(v => v.productId === productId);
             variantChips.innerHTML = '';
             if (!filtered.length) {
-                variantChips.innerHTML = '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>';
+                variantChips.innerHTML = productId
+                    ? '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>'
+                    : '<span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>';
                 return;
             }
             filtered.forEach(v => {
@@ -371,19 +402,108 @@ else
                 btn.style.setProperty('--chip-text', col.text);
                 btn.style.setProperty('--chip-dot',  col.dot);
                 if (v.variantId === initialVariantId) btn.classList.add('is-selected');
-                btn.innerHTML = `<span class="color-chip__dot"></span><span>${v.label}</span>`;
-                btn.addEventListener('click', () => {
-                    variantChips.querySelectorAll('.variant-chip-btn').forEach(b => b.classList.remove('is-selected'));
-                    btn.classList.add('is-selected');
-                    variantHidden.value = v.variantId;
-                });
+                btn.innerHTML = `
+                    <code class="variant-chip-btn__sku">${v.sku}</code>
+                    <span class="color-swatch color-swatch--variant-choice" title="${v.label}">
+                        <span class="color-swatch__fill"></span>
+                        <span class="color-swatch__label">${v.label}</span>
+                    </span>`;
+                btn.addEventListener('click', () => selectVariant(btn, v.variantId));
                 variantChips.appendChild(btn);
             });
+        }
+
+        function selectVariant(btn, id) {
+            variantChips.querySelectorAll('.variant-chip-btn').forEach(b => b.classList.remove('is-selected'));
+            btn.classList.add('is-selected');
+            variantHidden.value = id;
+        }
+
+        function readQty(input) {
+            const value = Number.parseInt(input.value, 10);
+            return Number.isFinite(value) && value > 0 ? value : 0;
+        }
+
+        function renderTxnLines() {
+            linesWrap.classList.toggle('d-none', txnLines.length === 0);
+            linesBody.innerHTML = '';
+            linesInputs.innerHTML = '';
+
+            txnLines.forEach((line, index) => {
+                const col = resolveColor(line.label);
+                linesBody.insertAdjacentHTML('beforeend', `
+                    <tr>
+                        <td><code>${line.sku}</code></td>
+                        <td>
+                            <span class="color-swatch color-swatch--txn-line" style="--swatch-color:${col.dot}" title="${line.label}">
+                                <span class="color-swatch__fill">${line.qtyPieces ? line.qtyPieces.toLocaleString() : ''}</span>
+                                <span class="color-swatch__label">${line.label}</span>
+                            </span>
+                        </td>
+                        <td class="text-end">${line.qtyPieces.toLocaleString()}</td>
+                        <td class="text-end">${line.qtyCases.toLocaleString()}</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-txn-line" data-index="${index}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`);
+
+                linesInputs.insertAdjacentHTML('beforeend', `
+                    <input type="hidden" name="Lines[${index}].VariantId" value="${line.variantId}" />
+                    <input type="hidden" name="Lines[${index}].QtyPieces" value="${line.qtyPieces}" />
+                    <input type="hidden" name="Lines[${index}].QtyCases" value="${line.qtyCases}" />`);
+            });
+        }
+
+        function addCurrentLine(showAlert = true) {
+            const variantId = variantHidden.value;
+            const qtyPieces = readQty(qtyPiecesInput);
+            const qtyCases = readQty(qtyCasesInput);
+            const variant = allVariants.find(v => v.variantId === variantId);
+
+            if (!variantId || !variant) {
+                if (showAlert) alert('กรุณาเลือกสี/รุ่นก่อนเพิ่มรายการ');
+                return false;
+            }
+
+            if (qtyPieces === 0 && qtyCases === 0) {
+                if (showAlert) alert('กรุณาระบุจำนวนชิ้นหรือลังอย่างน้อย 1 รายการ');
+                return false;
+            }
+
+            const existing = txnLines.find(line => line.variantId === variantId);
+            if (existing) {
+                existing.qtyPieces += qtyPieces;
+                existing.qtyCases += qtyCases;
+            } else {
+                txnLines.push({
+                    variantId,
+                    sku: variant.sku,
+                    label: variant.label,
+                    qtyPieces,
+                    qtyCases
+                });
+            }
+
+            qtyPiecesInput.value = 0;
+            qtyCasesInput.value = 0;
+            renderTxnLines();
+            return true;
         }
 
         productSelect.addEventListener('change', () => {
             variantHidden.value = '';
             buildChips(productSelect.value);
+        });
+        productSearch.addEventListener('input', () => filterProducts(productSearch.value));
+        addLineBtn.addEventListener('click', () => addCurrentLine());
+        linesBody.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-txn-line');
+            if (!removeBtn) return;
+
+            txnLines.splice(Number.parseInt(removeBtn.dataset.index, 10), 1);
+            renderTxnLines();
         });
         if (productSelect.value) buildChips(productSelect.value);
 
@@ -396,12 +516,15 @@ else
         });
 
         /* AJAX form submit */
-        const form      = document.getElementById('createTxnForm');
         const alertDiv  = document.getElementById('modalAlert');
         const submitBtn = document.getElementById('modalSubmitBtn');
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (txnLines.length === 0) {
+                const hasDraftQty = readQty(qtyPiecesInput) > 0 || readQty(qtyCasesInput) > 0;
+                if (hasDraftQty) addCurrentLine(false);
+            }
             alertDiv.classList.add('d-none');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก...';
@@ -448,8 +571,11 @@ else
         btn.addEventListener('click', async () => {
             const variantId = btn.dataset.variantId;
             const productId = btn.dataset.productId;
-            const url = '@Url.Action("CreateModal", "Transactions")?' +
-                (variantId ? `variantId=${variantId}` : `productId=${productId}`);
+            const params = new URLSearchParams();
+            if (variantId) params.set('variantId', variantId);
+            if (productId) params.set('productId', productId);
+            const query = params.toString();
+            const url = '@Url.Action("CreateModal", "Transactions")' + (query ? `?${query}` : '');
 
             const modalEl   = document.getElementById('createTxnModal');
             const modalBody = document.getElementById('createTxnModalBody');
@@ -478,11 +604,10 @@ else
     function chipHtml(variantName, qtyPieces) {
         const col   = resolveColor(variantName);
         const empty = qtyPieces === 0;
-        return `<span class="color-chip ${empty ? 'color-chip--empty' : ''}"
-                      style="--chip-bg:${col.bg};--chip-text:${col.text};--chip-dot:${col.dot}">
-                    <span class="color-chip__dot"></span>
-                    <span class="color-chip__name">${variantName}</span>
-                    <span class="color-chip__qty ${empty ? 'color-chip__qty--zero' : ''}">${empty ? 'หมด' : qtyPieces.toLocaleString()}</span>
+        return `<span class="color-swatch color-swatch--table ${empty ? 'color-swatch--empty' : ''}"
+                      style="--swatch-color:${col.dot}" title="${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น'}">
+                    <span class="color-swatch__fill">${empty ? '' : qtyPieces.toLocaleString()}</span>
+                    <span class="color-swatch__label">${variantName}</span>
                 </span>`;
     }
 
@@ -528,7 +653,7 @@ else
                 if (colorCol) {
                     const activeColors = item.colors.filter(c => c.qtyPieces > 0);
                     colorCell = `<td>${activeColors.length
-                        ? `<div class="d-flex flex-wrap gap-1">${activeColors.map(c => chipHtml(c.variantName, c.qtyPieces)).join(' ')}</div>`
+                        ? `<div class="color-swatch-grid">${activeColors.map(c => chipHtml(c.variantName, c.qtyPieces)).join(' ')}</div>`
                         : '<span class="text-muted small fst-italic">-</span>'}</td>`;
                 }
                 html += `<tr>

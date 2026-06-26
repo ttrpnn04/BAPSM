@@ -13,11 +13,13 @@
 <div class="row">
     <div class="col-lg-7">
         <div class="form-card">
-            <form asp-action="Create" method="post">
+            <form asp-action="Create" method="post" id="createTxnForm">
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2" role="alert"></div>
 
                 <div class="mb-3">
                     <label asp-for="ProductId" class="form-label"></label>
+                    <input type="search" id="productSearch" class="form-control form-control-sm mb-2"
+                           placeholder="ค้นหาสินค้า..." autocomplete="off" />
                     <select asp-for="ProductId" asp-items="ViewBag.Products" class="form-select" id="productSelect">
                         <option value="">-- เลือกสินค้า --</option>
                     </select>
@@ -36,6 +38,7 @@
                         {
                             <span data-variant-id="@variant.VariantId"
                                   data-product-id="@variant.ProductId"
+                                  data-sku="@variant.Sku"
                                   data-label="@variant.Label"></span>
                         }
                     </div>
@@ -66,7 +69,7 @@
                     <span asp-validation-for="TxnDate" class="text-danger small"></span>
                 </div>
 
-                <div class="row">
+                <div class="row align-items-end">
                     <div class="col-md-6 mb-3">
                         <label asp-for="QtyPieces" class="form-label"></label>
                         <input asp-for="QtyPieces" class="form-control" type="number" min="0" />
@@ -77,6 +80,29 @@
                         <input asp-for="QtyCases" class="form-control" type="number" min="0" />
                         <span asp-validation-for="QtyCases" class="text-danger small"></span>
                     </div>
+                </div>
+
+                <div class="mb-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="addTxnLineBtn">
+                        <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
+                    </button>
+                    <div class="form-text">เพิ่มได้หลายสี/รุ่น แล้วกดบันทึกครั้งเดียว</div>
+                </div>
+
+                <div class="table-responsive mb-3 d-none" id="txnLinesWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>รหัสสินค้า</th>
+                                <th>สี/รุ่น</th>
+                                <th class="text-end">ชิ้น</th>
+                                <th class="text-end">ลัง</th>
+                                <th class="text-end"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="txnLinesBody"></tbody>
+                    </table>
+                    <div id="txnLinesInputs"></div>
                 </div>
 
                 <div class="mb-3">
@@ -133,29 +159,55 @@
         }
 
         /* ── elements ── */
+        const form           = document.getElementById('createTxnForm');
         const productSelect  = document.getElementById('productSelect');
+        const productSearch  = document.getElementById('productSearch');
         const variantChips   = document.getElementById('variantChips');
         const variantHidden  = document.getElementById('variantHidden');
         const variantDataEl  = document.getElementById('variantData');
+        const qtyPiecesInput = document.getElementById('QtyPieces');
+        const qtyCasesInput  = document.getElementById('QtyCases');
+        const addLineBtn     = document.getElementById('addTxnLineBtn');
+        const linesWrap      = document.getElementById('txnLinesWrap');
+        const linesBody      = document.getElementById('txnLinesBody');
+        const linesInputs    = document.getElementById('txnLinesInputs');
 
-        if (!productSelect || !variantChips || !variantHidden || !variantDataEl) return;
+        if (!form || !productSelect || !productSearch || !variantChips || !variantHidden || !variantDataEl ||
+            !qtyPiecesInput || !qtyCasesInput || !addLineBtn || !linesWrap || !linesBody || !linesInputs) return;
 
         /* read all variants from DOM data */
         const allVariants = Array.from(variantDataEl.querySelectorAll('[data-variant-id]'))
             .map(el => ({
                 variantId: el.dataset.variantId,
                 productId: el.dataset.productId,
+                sku:       el.dataset.sku,
                 label:     el.dataset.label,
             }));
 
         const initialVariantId = variantHidden.value;
+        const txnLines = [];
+
+        const productOptions = Array.from(productSelect.options).map(option => ({
+            option,
+            value: option.value,
+            text: option.textContent.toLowerCase(),
+        }));
+
+        function filterProducts(query) {
+            const term = query.trim().toLowerCase();
+            productOptions.forEach(({ option, value, text }) => {
+                option.hidden = !!value && !!term && !text.includes(term);
+            });
+        }
 
         function buildChips(productId) {
             const filtered = allVariants.filter(v => v.productId === productId);
             variantChips.innerHTML = '';
 
             if (!filtered.length) {
-                variantChips.innerHTML = '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>';
+                variantChips.innerHTML = productId
+                    ? '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>'
+                    : '<span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>';
                 return;
             }
 
@@ -170,7 +222,12 @@
                 btn.style.setProperty('--chip-dot',  col.dot);
                 if (v.variantId === initialVariantId) btn.classList.add('is-selected');
 
-                btn.innerHTML = `<span class="color-chip__dot"></span><span>${v.label}</span>`;
+                btn.innerHTML = `
+                    <code class="variant-chip-btn__sku">${v.sku}</code>
+                    <span class="color-swatch color-swatch--variant-choice" title="${v.label}">
+                        <span class="color-swatch__fill"></span>
+                        <span class="color-swatch__label">${v.label}</span>
+                    </span>`;
                 btn.addEventListener('click', () => selectVariant(btn, v.variantId));
                 variantChips.appendChild(btn);
             });
@@ -182,9 +239,100 @@
             variantHidden.value = id;
         }
 
+        function readQty(input) {
+            const value = Number.parseInt(input.value, 10);
+            return Number.isFinite(value) && value > 0 ? value : 0;
+        }
+
+        function renderTxnLines() {
+            linesWrap.classList.toggle('d-none', txnLines.length === 0);
+            linesBody.innerHTML = '';
+            linesInputs.innerHTML = '';
+
+            txnLines.forEach((line, index) => {
+                const col = resolveColor(line.label);
+                linesBody.insertAdjacentHTML('beforeend', `
+                    <tr>
+                        <td><code>${line.sku}</code></td>
+                        <td>
+                            <span class="color-swatch color-swatch--txn-line" style="--swatch-color:${col.dot}" title="${line.label}">
+                                <span class="color-swatch__fill">${line.qtyPieces ? line.qtyPieces.toLocaleString() : ''}</span>
+                                <span class="color-swatch__label">${line.label}</span>
+                            </span>
+                        </td>
+                        <td class="text-end">${line.qtyPieces.toLocaleString()}</td>
+                        <td class="text-end">${line.qtyCases.toLocaleString()}</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-txn-line" data-index="${index}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`);
+
+                linesInputs.insertAdjacentHTML('beforeend', `
+                    <input type="hidden" name="Lines[${index}].VariantId" value="${line.variantId}" />
+                    <input type="hidden" name="Lines[${index}].QtyPieces" value="${line.qtyPieces}" />
+                    <input type="hidden" name="Lines[${index}].QtyCases" value="${line.qtyCases}" />`);
+            });
+        }
+
+        function addCurrentLine(showAlert = true) {
+            const variantId = variantHidden.value;
+            const qtyPieces = readQty(qtyPiecesInput);
+            const qtyCases = readQty(qtyCasesInput);
+            const variant = allVariants.find(v => v.variantId === variantId);
+
+            if (!variantId || !variant) {
+                if (showAlert) alert('กรุณาเลือกสี/รุ่นก่อนเพิ่มรายการ');
+                return false;
+            }
+
+            if (qtyPieces === 0 && qtyCases === 0) {
+                if (showAlert) alert('กรุณาระบุจำนวนชิ้นหรือลังอย่างน้อย 1 รายการ');
+                return false;
+            }
+
+            const existing = txnLines.find(line => line.variantId === variantId);
+            if (existing) {
+                existing.qtyPieces += qtyPieces;
+                existing.qtyCases += qtyCases;
+            } else {
+                txnLines.push({
+                    variantId,
+                    sku: variant.sku,
+                    label: variant.label,
+                    qtyPieces,
+                    qtyCases
+                });
+            }
+
+            qtyPiecesInput.value = 0;
+            qtyCasesInput.value = 0;
+            renderTxnLines();
+            return true;
+        }
+
         productSelect.addEventListener('change', () => {
             variantHidden.value = '';
             buildChips(productSelect.value);
+        });
+
+        productSearch.addEventListener('input', () => filterProducts(productSearch.value));
+        addLineBtn.addEventListener('click', () => addCurrentLine());
+
+        linesBody.addEventListener('click', (e) => {
+            const removeBtn = e.target.closest('.remove-txn-line');
+            if (!removeBtn) return;
+
+            txnLines.splice(Number.parseInt(removeBtn.dataset.index, 10), 1);
+            renderTxnLines();
+        });
+
+        form.addEventListener('submit', (e) => {
+            if (txnLines.length > 0) return;
+
+            const hasDraftQty = readQty(qtyPiecesInput) > 0 || readQty(qtyCasesInput) > 0;
+            if (hasDraftQty && addCurrentLine(false)) return;
         });
 
         /* init */
