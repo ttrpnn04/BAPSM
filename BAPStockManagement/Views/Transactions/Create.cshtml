@@ -76,7 +76,9 @@
 
                 <div class="mb-3">
                     <label asp-for="TxnDate" class="form-label"></label>
-                    <input asp-for="TxnDate" class="form-control" type="date" />
+                    <input asp-for="TxnDate" class="form-control" type="text"
+                           value="@Model.TxnDate.ToString("dd/MM/yyyy")"
+                           placeholder="วัน/เดือน/ปี" inputmode="numeric" />
                     <span asp-validation-for="TxnDate" class="text-danger small"></span>
                 </div>
 

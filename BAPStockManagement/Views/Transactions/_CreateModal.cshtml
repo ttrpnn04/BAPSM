@@ -61,7 +61,8 @@
 
     <div class="mb-3">
         <label class="form-label fw-medium">วันที่ <span class="text-danger">*</span></label>
-        <input type="date" name="TxnDate" class="form-control" value="@Model.TxnDate.ToString("yyyy-MM-dd")" />
+        <input type="text" name="TxnDate" class="form-control" value="@Model.TxnDate.ToString("dd/MM/yyyy")"
+               placeholder="วัน/เดือน/ปี" inputmode="numeric" />
     </div>
 
     <div class="row g-3 mb-3 align-items-end">

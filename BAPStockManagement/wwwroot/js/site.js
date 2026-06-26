@@ -75,6 +75,23 @@
     }, 4000);
   });
 
+  document.querySelectorAll('input[data-date-format="dd/MM/yyyy"], input[placeholder="วัน/เดือน/ปี"]').forEach(function (control) {
+    control.addEventListener('input', function () {
+      var cursorAtEnd = control.selectionStart === control.value.length;
+      var digits = control.value.replace(/\D/g, '').slice(0, 8);
+      var parts = [];
+
+      if (digits.length > 0) parts.push(digits.slice(0, 2));
+      if (digits.length > 2) parts.push(digits.slice(2, 4));
+      if (digits.length > 4) parts.push(digits.slice(4, 8));
+
+      control.value = parts.join('/');
+      if (cursorAtEnd) {
+        control.setSelectionRange(control.value.length, control.value.length);
+      }
+    });
+  });
+
   /* ── Auto-submit filter bars ── */
   document.querySelectorAll('.filter-bar form[method="get"]').forEach(function (form) {
     var debounceTimer = null;

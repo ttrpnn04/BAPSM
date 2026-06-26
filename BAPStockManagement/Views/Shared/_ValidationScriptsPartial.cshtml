@@ -1,2 +1,10 @@
 ﻿<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
 <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+<script>
+    if (window.jQuery?.validator) {
+        $.validator.methods.date = function (value, element) {
+            if (this.optional(element)) return true;
+            return /^(0?[1-9]|[12]\d|3[01])\/(0?[1-9]|1[0-2])\/\d{4}$/.test(value);
+        };
+    }
+</script>

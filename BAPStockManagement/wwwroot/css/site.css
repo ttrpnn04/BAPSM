@@ -332,6 +332,12 @@ a:hover { color: var(--primary-hover); }
     width: var(--sb-collapsed-w);
   }
 
+  body.sidebar-collapsed .sidebar:hover,
+  body.sidebar-collapsed .sidebar:focus-within {
+    width: var(--sb-w);
+    box-shadow: var(--shadow-lg);
+  }
+
   body.sidebar-collapsed .app-main {
     margin-left: var(--sb-collapsed-w);
   }
@@ -339,6 +345,13 @@ a:hover { color: var(--primary-hover); }
   body.sidebar-collapsed .sb-section-label,
   body.sidebar-collapsed .sb-link span {
     display: none;
+  }
+
+  body.sidebar-collapsed .sidebar:hover .sb-section-label,
+  body.sidebar-collapsed .sidebar:hover .sb-link span,
+  body.sidebar-collapsed .sidebar:focus-within .sb-section-label,
+  body.sidebar-collapsed .sidebar:focus-within .sb-link span {
+    display: block;
   }
 
   body.sidebar-collapsed .sb-nav {
@@ -349,6 +362,17 @@ a:hover { color: var(--primary-hover); }
     justify-content: center;
     padding: 0.6rem;
     border-left-color: transparent !important;
+  }
+
+  body.sidebar-collapsed .sidebar:hover .sb-link,
+  body.sidebar-collapsed .sidebar:focus-within .sb-link {
+    justify-content: flex-start;
+    padding: 0.5rem 0.9rem;
+  }
+
+  body.sidebar-collapsed .sidebar:hover .sb-link.active,
+  body.sidebar-collapsed .sidebar:focus-within .sb-link.active {
+    border-left-color: var(--sb-active-line) !important;
   }
 
   body.sidebar-collapsed .sb-link.active {
