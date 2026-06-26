@@ -21,7 +21,6 @@ public class CategoriesController : Controller
     {
         var items = await _context.Categories
             .AsNoTracking()
-            .Where(c => c.IsActive)
             .Select(c => new CategoryListItemViewModel
             {
                 CategoryId = c.CategoryId,
@@ -31,7 +30,8 @@ public class CategoriesController : Controller
                 ProductCount = c.Products.Count(p => p.IsActive),
                 IsActive = c.IsActive
             })
-            .OrderBy(c => c.SortOrder)
+            .OrderBy(c => c.IsActive ? 0 : 1)
+            .ThenBy(c => c.SortOrder)
             .ThenBy(c => c.CategoryName)
             .ToListAsync();
 

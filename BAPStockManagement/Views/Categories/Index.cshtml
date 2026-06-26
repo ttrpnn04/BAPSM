@@ -1,6 +1,8 @@
 @model IEnumerable<BAPStockManagement.ViewModels.Categories.CategoryListItemViewModel>
 @{
     ViewData["Title"] = "จัดการหมวดหมู่";
+    var activeCount = Model.Count(c => c.IsActive);
+    var inactiveCount = Model.Count(c => !c.IsActive);
 }
 
 <div class="page-header">
@@ -14,6 +16,15 @@
         </a>
     </div>
 </div>
+
+@if (inactiveCount > 0)
+{
+    <div class="alert alert-secondary py-2">
+        แสดงหมวดหมู่ทั้งหมด @Model.Count().ToString("N0") รายการ:
+        ใช้งาน @activeCount.ToString("N0") รายการ,
+        ปิดใช้งาน @inactiveCount.ToString("N0") รายการ
+    </div>
+}
 
 <div class="table-card">
     <div class="table-responsive">
