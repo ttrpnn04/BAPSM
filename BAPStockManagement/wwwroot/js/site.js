@@ -109,7 +109,7 @@
 
     function submitFilterSoon() {
       window.clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(submitFilter, 650);
+      debounceTimer = window.setTimeout(submitFilter, 900);
     }
 
     form.querySelectorAll('select, input[type="date"], input[type="number"]').forEach(function (control) {

@@ -66,6 +66,7 @@
   --radius-lg:       6px;
   --shadow-xs:       0 1px 2px rgba(0,0,0,.05);
   --shadow-sm:       0 1px 4px rgba(0,0,0,.10);
+  --shadow-lg:       0 8px 24px rgba(0,0,0,.14);
   --transition:      150ms ease;
 }
 
@@ -322,8 +323,10 @@ a:hover { color: var(--primary-hover); }
 
 .main-content {
   flex: 1;
+  width: 100%;
   padding: 1.25rem 1.25rem;
   max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* ── Sidebar collapsed ──────────────────────────────────────────── */

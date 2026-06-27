@@ -30,7 +30,7 @@
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card stat-primary">
-            <div class="d-flex justify-content-between align-items-start">
+            <div class="d-flex justify-content-between align-items-start w-100">
                 <div>
                     <div class="stat-label">จำนวนรุ่นสินค้า</div>
                     <div class="stat-value">@Model.TotalItems.ToString("N0")</div>
@@ -42,7 +42,7 @@
     </div>
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card stat-success">
-            <div class="d-flex justify-content-between align-items-start">
+            <div class="d-flex justify-content-between align-items-start w-100">
                 <div>
                     <div class="stat-label">สต็อกรวม</div>
                     <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
@@ -55,8 +55,8 @@
     <div class="col-sm-6 col-xl-3">
         <div id="lowStockCard"
              class="stat-card stat-clickable @(Model.LowStockCount > 0 ? "stat-warning" : "stat-secondary")"
-             role="button" title="คลิกเพื่อดูรายการ">
-            <div class="d-flex justify-content-between align-items-start">
+             role="button" tabindex="0" title="คลิกเพื่อดูรายการ">
+            <div class="d-flex justify-content-between align-items-start w-100">
                 <div>
                     <div class="stat-label">สินค้าใกล้หมด</div>
                     <div class="stat-value">@Model.LowStockCount</div>
@@ -69,8 +69,8 @@
     <div class="col-sm-6 col-xl-3">
         <div id="outOfStockCard"
              class="stat-card stat-clickable @(Model.OutOfStockCount > 0 ? "stat-danger" : "stat-secondary")"
-             role="button" title="คลิกเพื่อดูรายการ">
-            <div class="d-flex justify-content-between align-items-start">
+             role="button" tabindex="0" title="คลิกเพื่อดูรายการ">
+            <div class="d-flex justify-content-between align-items-start w-100">
                 <div>
                     <div class="stat-label">หมดสต็อก</div>
                     <div class="stat-value">@Model.OutOfStockCount</div>
@@ -286,44 +286,8 @@ else
 @section Scripts {
 <script>
 (function () {
-    /* ── shared color palette ─────────────────────────────────── */
-    const palette = [
-        { keys: ['ดำ'],                          bg: '#1e293b', text: '#f8fafc', dot: '#94a3b8' },
-        { keys: ['แดง'],                         bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },
-        { keys: ['น้ำเงิน'],                     bg: '#dbeafe', text: '#1e40af', dot: '#3b82f6' },
-        { keys: ['ฟ้า','ธงฟ้า'],                bg: '#e0f2fe', text: '#0369a1', dot: '#0ea5e9' },
-        { keys: ['ส้ม'],                         bg: '#ffedd5', text: '#9a3412', dot: '#f97316' },
-        { keys: ['เขียวออ่อน','เขียวอ่อน'],     bg: '#dcfce7', text: '#166534', dot: '#4ade80' },
-        { keys: ['เขียว'],                       bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
-        { keys: ['ชมพูอ่อน'],                    bg: '#fdf2f8', text: '#9d174d', dot: '#f9a8d4' },
-        { keys: ['ชมพูเข้ม','ชมพู','ชม'],       bg: '#fce7f3', text: '#9d174d', dot: '#ec4899' },
-        { keys: ['ทอง'],                         bg: '#fef3c7', text: '#78350f', dot: '#f59e0b' },
-        { keys: ['เหลือง','ครีม'],               bg: '#fef9c3', text: '#713f12', dot: '#eab308' },
-        { keys: ['ม่วง'],                        bg: '#ede9fe', text: '#4c1d95', dot: '#8b5cf6' },
-        { keys: ['น้ำตาล'],                      bg: '#fef3c7', text: '#92400e', dot: '#b45309' },
-        { keys: ['เทา'],                         bg: '#f1f5f9', text: '#475569', dot: '#94a3b8' },
-        { keys: ['ขาว'],                         bg: '#f8fafc', text: '#334155', dot: '#cbd5e1' },
-        { keys: ['วัว'],                         bg: '#fef2f2', text: '#7f1d1d', dot: '#fca5a5' },
-    ];
-    function resolveColor(name) {
-        for (const e of palette) { if (e.keys.some(k => name.includes(k))) return e; }
-        return { bg: '#f4f4f5', text: '#52525b', dot: '#94a3b8' };
-    }
-
-    /* ── apply color chips in stock table ─────────────────────── */
-    document.querySelectorAll('.color-chip[data-vname]').forEach(chip => {
-        const col = resolveColor(chip.dataset.vname || '');
-        if (!col) return;
-        chip.style.setProperty('--chip-bg',   col.bg);
-        chip.style.setProperty('--chip-text', col.text);
-        chip.style.setProperty('--chip-dot',  col.dot);
-    });
-
-    /* ── apply colors to Excel-style swatches ─────────────────── */
-    document.querySelectorAll('.color-swatch[data-vname]').forEach(swatch => {
-        const col = resolveColor(swatch.dataset.vname || '');
-        swatch.style.setProperty('--swatch-color', col.dot);
-    });
+    const resolveColor = window.BapStockColors?.resolve
+        || (() => ({ bg: '#f4f4f5', text: '#52525b', dot: '#94a3b8' }));
 
     /* ── modal: initialize form after AJAX load ───────────────── */
     function initModalForm() {
@@ -676,8 +640,20 @@ else
         }
     }
 
-    document.getElementById('lowStockCard')  ?.addEventListener('click', () => openAlertModal('low'));
-    document.getElementById('outOfStockCard')?.addEventListener('click', () => openAlertModal('out'));
+    function bindAlertCard(cardId, alertType) {
+        const card = document.getElementById(cardId);
+        if (!card) return;
+
+        card.addEventListener('click', () => openAlertModal(alertType));
+        card.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            openAlertModal(alertType);
+        });
+    }
+
+    bindAlertCard('lowStockCard', 'low');
+    bindAlertCard('outOfStockCard', 'out');
 })();
 </script>
 }
