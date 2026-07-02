@@ -49,20 +49,40 @@ public class UsersController : Controller
         return View(new CreateUserViewModel());
     }
 
+    [HttpGet]
+    public IActionResult CreateModal()
+    {
+        ViewBag.Roles = GetAssignableRoles();
+        return PartialView("_CreateModal", new CreateUserViewModel());
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateUserViewModel model)
     {
+        var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         ViewBag.Roles = GetAssignableRoles();
 
         if (!ModelState.IsValid)
         {
+            if (isAjax)
+            {
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                return PartialView("_CreateModal", model);
+            }
+
             return View(model);
         }
 
         if (!AppRoles.AssignableBySuperAdmin.Contains(model.Role))
         {
             ModelState.AddModelError(nameof(model.Role), "บทบาทไม่ถูกต้อง");
+            if (isAjax)
+            {
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                return PartialView("_CreateModal", model);
+            }
+
             return View(model);
         }
 
@@ -81,11 +101,22 @@ public class UsersController : Controller
                 ModelState.AddModelError(string.Empty, error.Description);
             }
 
+            if (isAjax)
+            {
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                return PartialView("_CreateModal", model);
+            }
+
             return View(model);
         }
 
         await _userManager.AddToRoleAsync(user, model.Role);
         TempData["Success"] = $"สร้างผู้ใช้ {model.Email} สำเร็จ";
+        if (isAjax)
+        {
+            return Ok(new { success = true, message = TempData["Success"] });
+        }
+
         return RedirectToAction(nameof(Index));
     }
 

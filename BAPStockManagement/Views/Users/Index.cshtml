@@ -9,9 +9,9 @@
         <p class="subtitle">สร้างและกำหนดสิทธิ์ผู้ใช้งานระบบ</p>
     </div>
     <div class="page-actions">
-        <a asp-action="Create" class="btn btn-primary">
+        <button type="button" class="btn btn-primary open-user-modal">
             <i class="bi bi-person-plus me-1"></i>สร้างผู้ใช้
-        </a>
+        </button>
     </div>
 </div>
 
@@ -60,3 +60,106 @@
         </table>
     </div>
 </div>
+
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title" id="createUserModalLabel">
+                    <i class="bi bi-person-plus text-primary me-2"></i>สร้างผู้ใช้
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="createUserModalBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-muted small mt-2">กำลังโหลด...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            function showToast(msg, type) {
+                const el = document.createElement('div');
+                el.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show shadow-sm`;
+                el.style.cssText = 'position:fixed;top:1.25rem;left:50%;transform:translateX(-50%);z-index:9999;min-width:260px;text-align:center';
+                el.innerHTML = `<i class="bi bi-check-circle me-1"></i>${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 4000);
+            }
+
+            function initUserModalForm() {
+                const form = document.getElementById('createUserForm');
+                const submitBtn = document.getElementById('userModalSubmitBtn');
+                if (!form || !submitBtn) return;
+
+                if (window.jQuery?.validator?.unobtrusive) {
+                    window.jQuery.validator.unobtrusive.parse(form);
+                }
+
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก...';
+
+                    try {
+                        const res = await fetch('@Url.Action("Create", "Users")', {
+                            method: 'POST',
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            body: new FormData(form)
+                        });
+
+                        if (res.ok) {
+                            bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+                            showToast('สร้างผู้ใช้สำเร็จ', 'success');
+                            setTimeout(() => location.reload(), 900);
+                            return;
+                        }
+
+                        document.getElementById('createUserModalBody').innerHTML = await res.text();
+                        initUserModalForm();
+                    } catch {
+                        document.getElementById('createUserModalBody').insertAdjacentHTML(
+                            'afterbegin',
+                            '<div class="alert alert-danger">เกิดข้อผิดพลาดในการเชื่อมต่อ</div>');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>บันทึก';
+                    }
+                });
+            }
+
+            document.querySelectorAll('.open-user-modal').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const modalEl = document.getElementById('createUserModal');
+                    const modalBody = document.getElementById('createUserModalBody');
+
+                    modalBody.innerHTML =
+                        '<div class="text-center py-5"><div class="spinner-border text-primary"></div>' +
+                        '<p class="text-muted small mt-2">กำลังโหลด...</p></div>';
+
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+                    try {
+                        const res = await fetch('@Url.Action("CreateModal", "Users")', {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        if (res.ok) {
+                            modalBody.innerHTML = await res.text();
+                            initUserModalForm();
+                        } else {
+                            modalBody.innerHTML = '<div class="alert alert-danger m-2">โหลดฟอร์มไม่สำเร็จ กรุณาลองใหม่</div>';
+                        }
+                    } catch {
+                        modalBody.innerHTML = '<div class="alert alert-danger m-2">เกิดข้อผิดพลาดในการเชื่อมต่อ</div>';
+                    }
+                });
+            });
+        })();
+    </script>
+}

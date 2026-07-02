@@ -88,10 +88,19 @@ public class ProductsController : Controller
     }
 
     [Authorize(Roles = AppRoles.AdminManage)]
+    [HttpGet]
+    public async Task<IActionResult> CreateModal()
+    {
+        await PopulateCategoriesAsync();
+        return PartialView("_CreateModal", new CreateProductViewModel());
+    }
+
+    [Authorize(Roles = AppRoles.AdminManage)]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateProductViewModel model)
     {
+        var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
         await PopulateCategoriesAsync();
 
         var variantNames = ParseVariantNames(model.VariantsText);
@@ -102,6 +111,12 @@ public class ProductsController : Controller
 
         if (!ModelState.IsValid)
         {
+            if (isAjax)
+            {
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                return PartialView("_CreateModal", model);
+            }
+
             return View(model);
         }
 
@@ -111,6 +126,12 @@ public class ProductsController : Controller
         if (skuExists)
         {
             ModelState.AddModelError(string.Empty, "SKU และชื่อสินค้านี้มีอยู่แล้ว");
+            if (isAjax)
+            {
+                Response.StatusCode = StatusCodes.Status400BadRequest;
+                return PartialView("_CreateModal", model);
+            }
+
             return View(model);
         }
 
@@ -140,6 +161,11 @@ public class ProductsController : Controller
         await _context.SaveChangesAsync();
 
         TempData["Success"] = $"สร้างสินค้า {product.ProductName} สำเร็จ ({variantNames.Count} สี/รุ่น)";
+        if (isAjax)
+        {
+            return Ok(new { success = true, message = TempData["Success"] });
+        }
+
         return RedirectToAction(nameof(Index));
     }
 

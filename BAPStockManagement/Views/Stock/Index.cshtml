@@ -17,9 +17,9 @@
             <button type="button" class="btn btn-outline-danger open-txn-modal" data-direction="-1">
                 <i class="bi bi-arrow-up-circle me-1"></i>ออก
             </button>
-            <a asp-controller="Products" asp-action="Create" class="btn btn-primary">
+            <button type="button" class="btn btn-primary open-product-modal">
                 <i class="bi bi-box-seam me-1"></i>เพิ่มสินค้าใหม่
-            </a>
+            </button>
         }
         <a asp-action="MonthlyReport" class="btn btn-outline-primary">
             <i class="bi bi-bar-chart-line me-1"></i>รายงาน
@@ -283,11 +283,70 @@ else
     </div>
 </div>
 
+<div class="modal fade" id="createProductModal" tabindex="-1" aria-labelledby="createProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title" id="createProductModalLabel">
+                    <i class="bi bi-box-seam text-primary me-2"></i>เพิ่มสินค้าใหม่
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="createProductModalBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-muted small mt-2">กำลังโหลด...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 (function () {
     const resolveColor = window.BapStockColors?.resolve
         || (() => ({ bg: '#f4f4f5', text: '#52525b', dot: '#94a3b8' }));
+
+    function initProductModalForm() {
+        const form = document.getElementById('createProductForm');
+        const submitBtn = document.getElementById('productModalSubmitBtn');
+        if (!form || !submitBtn) return;
+
+        if (window.jQuery?.validator?.unobtrusive) {
+            window.jQuery.validator.unobtrusive.parse(form);
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก...';
+
+            try {
+                const res = await fetch('@Url.Action("Create", "Products")', {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new FormData(form)
+                });
+
+                if (res.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('createProductModal')).hide();
+                    showToast('เพิ่มสินค้าใหม่สำเร็จ', 'success');
+                    setTimeout(() => location.reload(), 900);
+                    return;
+                }
+
+                document.getElementById('createProductModalBody').innerHTML = await res.text();
+                initProductModalForm();
+            } catch {
+                document.getElementById('createProductModalBody').insertAdjacentHTML(
+                    'afterbegin',
+                    '<div class="alert alert-danger">เกิดข้อผิดพลาดในการเชื่อมต่อ</div>');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>บันทึก';
+            }
+        });
+    }
 
     /* ── modal: initialize form after AJAX load ───────────────── */
     function initModalForm() {
@@ -530,6 +589,34 @@ else
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 4000);
     }
+
+    document.querySelectorAll('.open-product-modal').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const modalEl = document.getElementById('createProductModal');
+            const modalBody = document.getElementById('createProductModalBody');
+
+            modalBody.innerHTML =
+                '<div class="text-center py-5"><div class="spinner-border text-primary"></div>' +
+                '<p class="text-muted small mt-2">กำลังโหลด...</p></div>';
+
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+            try {
+                const res = await fetch('@Url.Action("CreateModal", "Products")', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (res.ok) {
+                    modalBody.innerHTML = await res.text();
+                    initProductModalForm();
+                } else {
+                    modalBody.innerHTML = '<div class="alert alert-danger m-2">โหลดฟอร์มไม่สำเร็จ กรุณาลองใหม่</div>';
+                }
+            } catch {
+                modalBody.innerHTML = '<div class="alert alert-danger m-2">เกิดข้อผิดพลาดในการเชื่อมต่อ</div>';
+            }
+        });
+    });
 
     /* ── open-modal buttons ───────────────────────────────────── */
     document.querySelectorAll('.open-txn-modal').forEach(btn => {

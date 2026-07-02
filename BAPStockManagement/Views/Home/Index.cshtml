@@ -1,8 +1,10 @@
-﻿@{
+﻿@model BAPStockManagement.ViewModels.Home.HomeDashboardViewModel
+
+@{
     ViewData["Title"] = "หน้าแรก";
-    var canEdit = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
-    var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
     var name = User.Identity?.Name?.Split('@')[0] ?? "ผู้ใช้";
+    var maxCategoryStock = Math.Max(Model.CategoryStockChartItems.Select(i => i.QtyPieces).DefaultIfEmpty(0).Max(), 1);
+    var maxDailyMovement = Math.Max(Model.DailyMovementChartItems.Select(i => Math.Max(i.InPieces, i.OutPieces)).DefaultIfEmpty(0).Max(), 1);
 }
 
 <div class="greeting-bar">
@@ -10,68 +12,155 @@
     <p>ยินดีต้อนรับสู่ระบบจัดการสต็อกสินค้า BAP Stock</p>
 </div>
 
-<div class="row g-3">
-    <div class="col-sm-6 col-xl-4">
-        <a asp-controller="Stock" asp-action="Index" class="quick-link-card ql-primary">
-            <div class="ql-icon"><i class="bi bi-box-seam"></i></div>
-            <div class="ql-title">สต็อกสินค้า</div>
-            <p class="ql-desc">ตรวจสอบยอดคงเหลือแยกตามสี/รุ่น</p>
-        </a>
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card stat-primary h-100">
+            <div>
+                <div class="stat-label">สินค้า active</div>
+                <div class="stat-value">@Model.ActiveProductCount.ToString("N0")</div>
+                <div class="stat-sub">@Model.ActiveVariantCount.ToString("N0") สี/รุ่น ใน @Model.ActiveCategoryCount.ToString("N0") หมวดหมู่</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-tags"></i></div>
+        </div>
     </div>
 
-    @if (canEdit)
-    {
-        <div class="col-sm-6 col-xl-4">
-            <a asp-controller="Transactions" asp-action="Create" class="quick-link-card ql-success">
-                <div class="ql-icon"><i class="bi bi-plus-circle"></i></div>
-                <div class="ql-title">บันทึกรายการ</div>
-                <p class="ql-desc">รับเข้า หรือ จ่ายออกสต็อกสินค้า</p>
-            </a>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card stat-success h-100">
+            <div>
+                <div class="stat-label">คงเหลือทั้งหมด</div>
+                <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
+                <div class="stat-sub">@Model.TotalCases.ToString("N0") ลัง</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-boxes"></i></div>
         </div>
-    }
-
-    <div class="col-sm-6 col-xl-4">
-        <a asp-controller="Transactions" asp-action="Index" class="quick-link-card ql-info">
-            <div class="ql-icon"><i class="bi bi-arrow-left-right"></i></div>
-            <div class="ql-title">ประวัติรายการ</div>
-            <p class="ql-desc">ดูการเคลื่อนไหวสต็อกย้อนหลัง</p>
-        </a>
     </div>
 
-    <div class="col-sm-6 col-xl-4">
-        <a asp-controller="Stock" asp-action="MonthlyReport" class="quick-link-card ql-secondary">
-            <div class="ql-icon"><i class="bi bi-bar-chart-line"></i></div>
-            <div class="ql-title">รายงานรายเดือน</div>
-            <p class="ql-desc">สรุปรับเข้า จ่ายออก และยอดสุทธิ</p>
-        </a>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card stat-warning h-100">
+            <div>
+                <div class="stat-label">ใกล้หมด</div>
+                <div class="stat-value">@Model.LowStockProductCount.ToString("N0")</div>
+                <div class="stat-sub">สินค้าเหลือไม่เกิน 10 ชิ้น</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
     </div>
 
-    @if (isAdmin)
-    {
-        <div class="col-sm-6 col-xl-4">
-            <a asp-controller="Categories" asp-action="Index" class="quick-link-card ql-secondary">
-                <div class="ql-icon"><i class="bi bi-folder2"></i></div>
-                <div class="ql-title">หมวดหมู่</div>
-                <p class="ql-desc">จัดการหมวดหมู่สินค้า</p>
-            </a>
+    <div class="col-sm-6 col-xl-3">
+        <div class="stat-card stat-danger h-100">
+            <div>
+                <div class="stat-label">หมดสต็อก</div>
+                <div class="stat-value">@Model.OutOfStockProductCount.ToString("N0")</div>
+                <div class="stat-sub">สินค้าไม่มีคงเหลือ</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-dash-circle"></i></div>
         </div>
-        <div class="col-sm-6 col-xl-4">
-            <a asp-controller="Import" asp-action="Index" class="quick-link-card ql-secondary">
-                <div class="ql-icon"><i class="bi bi-file-earmark-arrow-up"></i></div>
-                <div class="ql-title">Import Excel</div>
-                <p class="ql-desc">นำเข้าข้อมูลจริงจากไฟล์ .xlsx</p>
-            </a>
-        </div>
-    }
+    </div>
 
-    @if (User.IsInRole("SuperAdmin"))
-    {
-        <div class="col-sm-6 col-xl-4">
-            <a asp-controller="Users" asp-action="Index" class="quick-link-card ql-secondary">
-                <div class="ql-icon"><i class="bi bi-people"></i></div>
-                <div class="ql-title">ผู้ใช้งาน</div>
-                <p class="ql-desc">สร้างและกำหนดสิทธิ์ผู้ใช้</p>
-            </a>
+    <div class="col-md-4">
+        <div class="stat-card stat-info h-100">
+            <div>
+                <div class="stat-label">รับเข้าเดือนนี้</div>
+                <div class="stat-value">@Model.MonthInPieces.ToString("N0")</div>
+                <div class="stat-sub">ชิ้น</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-arrow-down-circle"></i></div>
         </div>
-    }
+    </div>
+
+    <div class="col-md-4">
+        <div class="stat-card stat-secondary h-100">
+            <div>
+                <div class="stat-label">จ่ายออกเดือนนี้</div>
+                <div class="stat-value">@Model.MonthOutPieces.ToString("N0")</div>
+                <div class="stat-sub">ชิ้น</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-arrow-up-circle"></i></div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="stat-card stat-primary h-100">
+            <div>
+                <div class="stat-label">รายการเดือนนี้</div>
+                <div class="stat-value">@Model.MonthTransactionCount.ToString("N0")</div>
+                <div class="stat-sub">ล่าสุด @(Model.LastTransactionAt?.ToString("dd/MM/yyyy HH:mm") ?? "ยังไม่มีรายการ")</div>
+            </div>
+            <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-5">
+        <div class="chart-card h-100">
+            <div class="chart-card__header">
+                <div>
+                    <h2>สต็อกตามหมวดหมู่</h2>
+                    <p>Top 6 หมวดหมู่ที่มีจำนวนคงเหลือสูงสุด</p>
+                </div>
+                <i class="bi bi-bar-chart"></i>
+            </div>
+
+            @if (Model.CategoryStockChartItems.Count == 0)
+            {
+                <div class="chart-empty">ยังไม่มีข้อมูลสต็อกสำหรับแสดงกราฟ</div>
+            }
+            else
+            {
+                <div class="category-bar-list">
+                    @foreach (var item in Model.CategoryStockChartItems)
+                    {
+                        var percent = Math.Max((int)Math.Round(item.QtyPieces * 100.0 / maxCategoryStock), 3);
+                        <div class="category-bar-row">
+                            <div class="category-bar-meta">
+                                <span>@item.CategoryName</span>
+                                <strong>@item.QtyPieces.ToString("N0")</strong>
+                            </div>
+                            <div class="category-bar-track">
+                                <div class="category-bar-fill" style="width: @percent%;"></div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-xl-7">
+        <div class="chart-card h-100">
+            <div class="chart-card__header">
+                <div>
+                    <h2>รับเข้า / จ่ายออก เดือนนี้</h2>
+                    <p>เทียบจำนวนชิ้นรายวันในเดือนปัจจุบัน</p>
+                </div>
+                <div class="chart-legend">
+                    <span><i class="legend-dot legend-dot--in"></i>รับเข้า</span>
+                    <span><i class="legend-dot legend-dot--out"></i>จ่ายออก</span>
+                </div>
+            </div>
+
+            @if (Model.DailyMovementChartItems.Count == 0)
+            {
+                <div class="chart-empty">ยังไม่มีรายการเดือนนี้</div>
+            }
+            else
+            {
+                <div class="daily-chart">
+                    @foreach (var item in Model.DailyMovementChartItems)
+                    {
+                        var inHeight = Math.Max((int)Math.Round(item.InPieces * 100.0 / maxDailyMovement), item.InPieces > 0 ? 4 : 0);
+                        var outHeight = Math.Max((int)Math.Round(item.OutPieces * 100.0 / maxDailyMovement), item.OutPieces > 0 ? 4 : 0);
+                        <div class="daily-chart__day" title="วันที่ @item.Label: รับเข้า @item.InPieces.ToString("N0"), จ่ายออก @item.OutPieces.ToString("N0")">
+                            <div class="daily-chart__bars">
+                                <span class="daily-chart__bar daily-chart__bar--in" style="height: @inHeight%;"></span>
+                                <span class="daily-chart__bar daily-chart__bar--out" style="height: @outHeight%;"></span>
+                            </div>
+                            <div class="daily-chart__label">@item.Label</div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 </div>
