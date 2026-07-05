@@ -2,7 +2,7 @@
    BAP Stock — eCount-Inspired Design System
    Style: corporate ERP · clean · professional
    Font: Noto Sans Thai
-   Color: Corporate Blue (#0059A8), neutral base
+   Color: BAP Brand Navy (#12233F) + BAP Brand Orange (#F2791E)
    Layout: fixed top header + left sidebar + main content
    ================================================================ */
 
@@ -10,17 +10,23 @@
 
 /* ── Variables ─────────────────────────────────────────────────── */
 :root {
-  /* eCount Corporate Blue */
-  --primary:         #0059A8;
-  --primary-hover:   #004990;
-  --primary-soft:    #E8F0FA;
-  --primary-text:    #0059A8;
+  /* BAP Brand Navy */
+  --primary:         #12233F;
+  --primary-hover:   #0A1830;
+  --primary-soft:    #E9EBF2;
+  --primary-text:    #12233F;
+
+  /* BAP Brand Orange (from logo swoosh) */
+  --accent:          #F2791E;
+  --accent-hover:    #D9660F;
+  --accent-soft:     #FDECDC;
+  --accent-text:     #B8560C;
 
   /* Header */
   --header-h:        50px;
-  --header-bg:       #0059A8;
+  --header-bg:       #12233F;
   --header-text:     #ffffff;
-  --header-border:   #004A90;
+  --header-border:   #0A1830;
 
   /* Sidebar */
   --sb-w:            200px;
@@ -28,11 +34,11 @@
   --sb-bg:           #ffffff;
   --sb-border:       #DEE2E6;
   --sb-text:         #495057;
-  --sb-text-hover:   #0059A8;
-  --sb-hover-bg:     #F0F5FF;
-  --sb-active-bg:    #E8F0FA;
-  --sb-active-text:  #0059A8;
-  --sb-active-line:  #0059A8;
+  --sb-text-hover:   #12233F;
+  --sb-hover-bg:     #EEF1F6;
+  --sb-active-bg:    #E9EBF2;
+  --sb-active-text:  #12233F;
+  --sb-active-line:  #F2791E;
   --sb-section-text: #9CA3AF;
 
   /* Status colors */
@@ -108,7 +114,7 @@ a:hover { color: var(--primary-hover); }
   right: 0;
   height: var(--header-h);
   background: var(--header-bg);
-  border-bottom: 1px solid var(--header-border);
+  border-bottom: 2px solid var(--accent);
   display: flex;
   align-items: center;
   z-index: 300;
@@ -150,16 +156,24 @@ a:hover { color: var(--primary-hover); }
 }
 
 .header-brand-icon {
-  width: 28px;
-  height: 28px;
-  background: rgba(255,255,255,.2);
-  border-radius: var(--radius-sm);
+  width: 42px;
+  height: 30px;
+  background: #fff;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
-  color: #fff;
+  padding: 0.18rem 0.28rem;
+  box-shadow: 0 0 0 1px rgba(242,121,30,.55), 0 1px 5px rgba(0,0,0,.18);
+  overflow: hidden;
   flex-shrink: 0;
+}
+
+.header-brand-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .header-right {
@@ -679,7 +693,7 @@ a:hover { color: var(--primary-hover); }
 .form-select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(0,89,168,.12);
+  box-shadow: 0 0 0 2px rgba(18,35,63,.12);
 }
 
 .form-check-input:checked {
@@ -688,7 +702,7 @@ a:hover { color: var(--primary-hover); }
 }
 
 .form-check-input:focus {
-  box-shadow: 0 0 0 2px rgba(0,89,168,.12);
+  box-shadow: 0 0 0 2px rgba(18,35,63,.12);
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────── */
@@ -860,7 +874,7 @@ code {
 
 .quick-link-card:hover {
   border-color: var(--primary);
-  box-shadow: var(--shadow-sm), 0 0 0 2px rgba(0,89,168,.06);
+  box-shadow: var(--shadow-sm), 0 0 0 2px rgba(18,35,63,.06);
   transform: translateY(-1px);
   color: var(--text);
 }
@@ -1254,7 +1268,7 @@ code {
 
 .category-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary), #17A2B8);
+  background: linear-gradient(90deg, var(--primary), var(--accent));
   border-radius: inherit;
 }
 
@@ -1331,7 +1345,9 @@ code {
 
 /* ── Login ───────────────────────────────────────────────────────── */
 body.login-body {
-  background: #1A4B8C;
+  background:
+    radial-gradient(circle at top right, rgba(242, 121, 30, .38), transparent 24rem),
+    linear-gradient(135deg, #060E1E 0%, #12233F 55%, #1B3A63 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1353,16 +1369,30 @@ body.login-body {
 }
 
 .login-logo-icon {
-  width: 52px;
-  height: 52px;
+  width: 156px;
+  height: 88px;
   background: #fff;
-  border-radius: var(--radius);
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
-  font-size: 1.4rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  padding: 0.75rem 0.95rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.28), 0 0 0 4px rgba(255,255,255,.14), 0 0 0 6px rgba(242,121,30,.4);
+  overflow: hidden;
+}
+
+.login-logo-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 420px) {
+  .login-logo-icon {
+    width: 138px;
+    height: 78px;
+  }
 }
 
 .login-logo-name {
@@ -1447,13 +1477,13 @@ body.login-body {
   font-size: 0.9rem;
   font-weight: 600;
   justify-content: center;
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .btn-login-submit:hover {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .login-footer {

@@ -616,7 +616,6 @@ C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.runtimeconf
 C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.dll
 C:\Users\Admin\Documents\GitHub\BAPSM\_buildcheck\BAPStockManagement.pdb
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\2u7tkpi4yq-{0}-262r2yv5xs-262r2yv5xs.gz
-C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-y5pgcdsxog-y5pgcdsxog.gz
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\appsettings.Development.json
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\appsettings.json
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\import_preview.json
@@ -763,3 +762,4 @@ C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\runtimes\wi
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\runtimes\win-arm64\native\Microsoft.Data.SqlClient.SNI.dll
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\runtimes\win-x64\native\Microsoft.Data.SqlClient.SNI.dll
 C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\build-check\runtimes\win-x86\native\Microsoft.Data.SqlClient.SNI.dll
+C:\Users\Admin\Documents\GitHub\BAPSM\BAPStockManagement\obj\Debug\net10.0\compressed\ko22h3sa0a-{0}-firahwfk54-firahwfk54.gz
