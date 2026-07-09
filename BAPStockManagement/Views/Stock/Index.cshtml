@@ -426,12 +426,26 @@ else
                     btn.classList.add('is-selected');
                     variantHidden.value = v.variantId;
                 }
-                btn.innerHTML = `
-                    <code class="variant-chip-btn__sku">${v.sku}</code>
-                    <span class="color-swatch color-swatch--variant-choice" title="${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง">
-                        <span class="color-swatch__fill">${isSale ? v.qtyPieces.toLocaleString() : ''}</span>
-                        <span class="color-swatch__label">${v.label}</span>
-                    </span>`;
+                const skuEl = document.createElement('code');
+                skuEl.className = 'variant-chip-btn__sku';
+                skuEl.textContent = v.sku;
+
+                const swatch = document.createElement('span');
+                swatch.className = 'color-swatch color-swatch--variant-choice';
+                swatch.title = `${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง`;
+
+                const fill = document.createElement('span');
+                fill.className = 'color-swatch__fill';
+                fill.textContent = isSale ? v.qtyPieces.toLocaleString() : '';
+
+                const label = document.createElement('span');
+                label.className = 'color-swatch__label';
+                label.textContent = v.label;
+
+                swatch.appendChild(fill);
+                swatch.appendChild(label);
+                btn.appendChild(skuEl);
+                btn.appendChild(swatch);
                 btn.addEventListener('click', () => selectVariant(btn, v.variantId));
                 variantChips.appendChild(btn);
             });
@@ -455,28 +469,67 @@ else
 
             txnLines.forEach((line, index) => {
                 const col = resolveColor(line.label);
-                linesBody.insertAdjacentHTML('beforeend', `
-                    <tr>
-                        <td><code>${line.sku}</code></td>
-                        <td>
-                            <span class="color-swatch color-swatch--txn-line" style="--swatch-color:${col.dot}" title="${line.label}">
-                                <span class="color-swatch__fill">${line.qtyPieces ? line.qtyPieces.toLocaleString() : ''}</span>
-                                <span class="color-swatch__label">${line.label}</span>
-                            </span>
-                        </td>
-                        <td class="text-end">${line.qtyPieces.toLocaleString()}</td>
-                        <td class="text-end">${line.qtyCases.toLocaleString()}</td>
-                        <td class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-txn-line" data-index="${index}">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>`);
+                const tr = document.createElement('tr');
 
-                linesInputs.insertAdjacentHTML('beforeend', `
-                    <input type="hidden" name="Lines[${index}].VariantId" value="${line.variantId}" />
-                    <input type="hidden" name="Lines[${index}].QtyPieces" value="${line.qtyPieces}" />
-                    <input type="hidden" name="Lines[${index}].QtyCases" value="${line.qtyCases}" />`);
+                const skuTd = document.createElement('td');
+                const skuCode = document.createElement('code');
+                skuCode.textContent = line.sku;
+                skuTd.appendChild(skuCode);
+
+                const colorTd = document.createElement('td');
+                const swatch = document.createElement('span');
+                swatch.className = 'color-swatch color-swatch--txn-line';
+                swatch.style.setProperty('--swatch-color', col.dot);
+                swatch.title = line.label;
+                const fill = document.createElement('span');
+                fill.className = 'color-swatch__fill';
+                fill.textContent = line.qtyPieces ? line.qtyPieces.toLocaleString() : '';
+                const label = document.createElement('span');
+                label.className = 'color-swatch__label';
+                label.textContent = line.label;
+                swatch.appendChild(fill);
+                swatch.appendChild(label);
+                colorTd.appendChild(swatch);
+
+                const piecesTd = document.createElement('td');
+                piecesTd.className = 'text-end';
+                piecesTd.textContent = line.qtyPieces.toLocaleString();
+
+                const casesTd = document.createElement('td');
+                casesTd.className = 'text-end';
+                casesTd.textContent = line.qtyCases.toLocaleString();
+
+                const actionTd = document.createElement('td');
+                actionTd.className = 'text-end';
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger remove-txn-line';
+                removeBtn.dataset.index = String(index);
+                removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                actionTd.appendChild(removeBtn);
+
+                tr.appendChild(skuTd);
+                tr.appendChild(colorTd);
+                tr.appendChild(piecesTd);
+                tr.appendChild(casesTd);
+                tr.appendChild(actionTd);
+                linesBody.appendChild(tr);
+
+                const variantInput = document.createElement('input');
+                variantInput.type = 'hidden';
+                variantInput.name = `Lines[${index}].VariantId`;
+                variantInput.value = String(line.variantId);
+                const piecesInput = document.createElement('input');
+                piecesInput.type = 'hidden';
+                piecesInput.name = `Lines[${index}].QtyPieces`;
+                piecesInput.value = String(line.qtyPieces);
+                const casesInput = document.createElement('input');
+                casesInput.type = 'hidden';
+                casesInput.name = `Lines[${index}].QtyCases`;
+                casesInput.value = String(line.qtyCases);
+                linesInputs.appendChild(variantInput);
+                linesInputs.appendChild(piecesInput);
+                linesInputs.appendChild(casesInput);
             });
         }
 
@@ -585,7 +638,11 @@ else
         const el = document.createElement('div');
         el.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show shadow-sm`;
         el.style.cssText = 'position:fixed;top:1.25rem;left:50%;transform:translateX(-50%);z-index:9999;min-width:260px;text-align:center';
-        el.innerHTML = `<i class="bi bi-check-circle me-1"></i>${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        if (window.BapStockHtml?.setToastMessage) {
+            window.BapStockHtml.setToastMessage(el, msg, type === 'success' ? 'bi bi-check-circle' : 'bi bi-x-circle');
+        } else {
+            el.textContent = msg;
+        }
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 4000);
     }
@@ -655,14 +712,25 @@ else
     });
 
     /* ── alert modal (ใกล้หมด / หมดสต็อก) ───────────────────── */
-    function chipHtml(variantName, qtyPieces) {
+    function createChip(variantName, qtyPieces) {
         const col   = resolveColor(variantName);
         const empty = qtyPieces === 0;
-        return `<span class="color-swatch color-swatch--table ${empty ? 'color-swatch--empty' : ''}"
-                      style="--swatch-color:${col.dot}" title="${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น'}">
-                    <span class="color-swatch__fill">${empty ? '' : qtyPieces.toLocaleString()}</span>
-                    <span class="color-swatch__label">${variantName}</span>
-                </span>`;
+        const swatch = document.createElement('span');
+        swatch.className = `color-swatch color-swatch--table${empty ? ' color-swatch--empty' : ''}`;
+        swatch.style.setProperty('--swatch-color', col.dot);
+        swatch.title = `${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น'}`;
+
+        const fill = document.createElement('span');
+        fill.className = 'color-swatch__fill';
+        fill.textContent = empty ? '' : qtyPieces.toLocaleString();
+
+        const label = document.createElement('span');
+        label.className = 'color-swatch__label';
+        label.textContent = variantName;
+
+        swatch.appendChild(fill);
+        swatch.appendChild(label);
+        return swatch;
     }
 
     async function openAlertModal(alertType) {
@@ -670,59 +738,110 @@ else
         const icon  = isOut ? 'bi-x-circle text-danger' : 'bi-exclamation-triangle text-warning';
         const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น)';
 
-        document.getElementById('alertModalTitle').innerHTML =
-            `<i class="bi ${icon} me-2"></i>${title}`;
-        document.getElementById('alertModalBody').innerHTML =
+        const titleEl = document.getElementById('alertModalTitle');
+        titleEl.textContent = '';
+        const titleIcon = document.createElement('i');
+        titleIcon.className = `bi ${icon} me-2`;
+        titleEl.appendChild(titleIcon);
+        titleEl.appendChild(document.createTextNode(title));
+
+        const bodyEl = document.getElementById('alertModalBody');
+        bodyEl.innerHTML =
             '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById('alertModal')).show();
 
         try {
-            const res   = await fetch(`@Url.Action("AlertItems", "Stock")?alertType=${alertType}`);
+            const res   = await fetch(`@Url.Action("AlertItems", "Stock")?alertType=${encodeURIComponent(alertType)}`);
             const items = await res.json();
 
             if (!items.length) {
-                document.getElementById('alertModalBody').innerHTML =
+                bodyEl.innerHTML =
                     '<p class="text-muted text-center py-4"><i class="bi bi-check-circle me-1 text-success"></i>ไม่มีรายการ</p>';
                 return;
             }
 
             const colorCol = !isOut;
-            let html = `<div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th class="text-muted small fw-normal">หมวดหมู่</th>
-                            <th class="text-muted small fw-normal">SKU</th>
-                            <th class="text-muted small fw-normal">ชื่อสินค้า</th>
-                            ${colorCol ? '<th class="text-muted small fw-normal">สี/รุ่น</th>' : ''}
-                            <th class="text-end text-muted small fw-normal">ชิ้นรวม</th>
-                        </tr>
-                    </thead>
-                    <tbody>`;
+            const wrap = document.createElement('div');
+            wrap.className = 'table-responsive';
 
+            const table = document.createElement('table');
+            table.className = 'table table-sm table-hover align-middle mb-0';
+
+            const thead = document.createElement('thead');
+            const headRow = document.createElement('tr');
+            ['หมวดหมู่', 'SKU', 'ชื่อสินค้า'].forEach((text) => {
+                const th = document.createElement('th');
+                th.className = 'text-muted small fw-normal';
+                th.textContent = text;
+                headRow.appendChild(th);
+            });
+            if (colorCol) {
+                const th = document.createElement('th');
+                th.className = 'text-muted small fw-normal';
+                th.textContent = 'สี/รุ่น';
+                headRow.appendChild(th);
+            }
+            const piecesHead = document.createElement('th');
+            piecesHead.className = 'text-end text-muted small fw-normal';
+            piecesHead.textContent = 'ชิ้นรวม';
+            headRow.appendChild(piecesHead);
+            thead.appendChild(headRow);
+
+            const tbody = document.createElement('tbody');
             for (const item of items) {
-                const pcsClass = item.qtyPieces === 0 ? 'text-danger fw-bold' : 'text-warning fw-bold';
-                let colorCell = '';
+                const tr = document.createElement('tr');
+
+                const categoryTd = document.createElement('td');
+                const categorySpan = document.createElement('span');
+                categorySpan.className = 'text-muted small';
+                categorySpan.textContent = item.categoryName;
+                categoryTd.appendChild(categorySpan);
+
+                const skuTd = document.createElement('td');
+                const skuCode = document.createElement('code');
+                skuCode.textContent = item.sku;
+                skuTd.appendChild(skuCode);
+
+                const nameTd = document.createElement('td');
+                nameTd.className = 'fw-medium';
+                nameTd.textContent = item.productName;
+
+                tr.appendChild(categoryTd);
+                tr.appendChild(skuTd);
+                tr.appendChild(nameTd);
+
                 if (colorCol) {
+                    const colorTd = document.createElement('td');
                     const activeColors = item.colors.filter(c => c.qtyPieces > 0);
-                    colorCell = `<td>${activeColors.length
-                        ? `<div class="color-swatch-grid">${activeColors.map(c => chipHtml(c.variantName, c.qtyPieces)).join(' ')}</div>`
-                        : '<span class="text-muted small fst-italic">-</span>'}</td>`;
+                    if (activeColors.length) {
+                        const grid = document.createElement('div');
+                        grid.className = 'color-swatch-grid';
+                        activeColors.forEach(c => grid.appendChild(createChip(c.variantName, c.qtyPieces)));
+                        colorTd.appendChild(grid);
+                    } else {
+                        const empty = document.createElement('span');
+                        empty.className = 'text-muted small fst-italic';
+                        empty.textContent = '-';
+                        colorTd.appendChild(empty);
+                    }
+                    tr.appendChild(colorTd);
                 }
-                html += `<tr>
-                    <td><span class="text-muted small">${item.categoryName}</span></td>
-                    <td><code>${item.sku}</code></td>
-                    <td class="fw-medium">${item.productName}</td>
-                    ${colorCell}
-                    <td class="text-end ${pcsClass}">${item.qtyPieces.toLocaleString()}</td>
-                </tr>`;
+
+                const piecesTd = document.createElement('td');
+                piecesTd.className = `text-end ${item.qtyPieces === 0 ? 'text-danger fw-bold' : 'text-warning fw-bold'}`;
+                piecesTd.textContent = item.qtyPieces.toLocaleString();
+                tr.appendChild(piecesTd);
+
+                tbody.appendChild(tr);
             }
 
-            html += '</tbody></table></div>';
-            document.getElementById('alertModalBody').innerHTML = html;
+            table.appendChild(thead);
+            table.appendChild(tbody);
+            wrap.appendChild(table);
+            bodyEl.replaceChildren(wrap);
         } catch {
-            document.getElementById('alertModalBody').innerHTML =
+            bodyEl.innerHTML =
                 '<div class="alert alert-danger m-2">โหลดข้อมูลไม่สำเร็จ กรุณาลองใหม่</div>';
         }
     }

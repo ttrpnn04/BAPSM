@@ -247,9 +247,36 @@
     });
   }
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function setToastMessage(el, msg, iconClass) {
+    el.textContent = '';
+    var icon = document.createElement('i');
+    icon.className = (iconClass || 'bi bi-check-circle') + ' me-1';
+    el.appendChild(icon);
+    el.appendChild(document.createTextNode(String(msg == null ? '' : msg)));
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    el.appendChild(closeBtn);
+  }
+
   window.BapStockColors = {
     resolve: resolveColor,
     apply: applyVariantColors
+  };
+
+  window.BapStockHtml = {
+    escape: escapeHtml,
+    setToastMessage: setToastMessage
   };
 
   applyVariantColors(document);

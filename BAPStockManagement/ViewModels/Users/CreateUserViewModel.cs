@@ -11,7 +11,7 @@ public class CreateUserViewModel
     public string Email { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "กรุณากรอกรหัสผ่าน")]
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "รหัสผ่านต้องมีอย่างน้อย {2} ตัวอักษร")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "รหัสผ่านต้องมีอย่างน้อย {2} ตัวอักษร")]
     [DataType(DataType.Password)]
     [Display(Name = "รหัสผ่าน")]
     public string Password { get; set; } = string.Empty;

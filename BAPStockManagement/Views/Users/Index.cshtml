@@ -88,7 +88,11 @@
                 const el = document.createElement('div');
                 el.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show shadow-sm`;
                 el.style.cssText = 'position:fixed;top:1.25rem;left:50%;transform:translateX(-50%);z-index:9999;min-width:260px;text-align:center';
-                el.innerHTML = `<i class="bi bi-check-circle me-1"></i>${msg}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                if (window.BapStockHtml?.setToastMessage) {
+                    window.BapStockHtml.setToastMessage(el, msg, type === 'success' ? 'bi bi-check-circle' : 'bi bi-x-circle');
+                } else {
+                    el.textContent = msg;
+                }
                 document.body.appendChild(el);
                 setTimeout(() => el.remove(), 4000);
             }

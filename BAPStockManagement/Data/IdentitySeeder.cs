@@ -53,8 +53,8 @@ public static class IdentitySeeder
             return;
         }
 
-        await userManager.AddToRoleAsync(user, AppRoles.Admin);
-        logger.LogInformation("สร้าง Admin เริ่มต้น ({Email}) สำเร็จ", options.Email);
+        await userManager.AddToRoleAsync(user, AppRoles.SuperAdmin);
+        logger.LogInformation("สร้าง SuperAdmin เริ่มต้น ({Email}) สำเร็จ", options.Email);
     }
 
     private static async Task MigrateObsoleteRolesAsync(

@@ -175,6 +175,19 @@ public class UsersController : Controller
                 ModelState.AddModelError(nameof(model.Role), "บทบาทไม่ถูกต้อง");
                 return View(model);
             }
+
+            var isLastSuperAdmin = await IsLastSuperAdminAsync(user);
+            if (isLastSuperAdmin && model.Role != AppRoles.SuperAdmin)
+            {
+                ModelState.AddModelError(nameof(model.Role), "ไม่สามารถลดสิทธิ์ SuperAdmin คนสุดท้ายได้");
+                return View(model);
+            }
+
+            if (isLastSuperAdmin && model.IsLocked)
+            {
+                ModelState.AddModelError(nameof(model.IsLocked), "ไม่สามารถล็อกบัญชี SuperAdmin คนสุดท้ายได้");
+                return View(model);
+            }
         }
         else if (!AppRoles.AssignableBySuperAdmin.Contains(model.Role))
         {
@@ -236,19 +249,10 @@ public class UsersController : Controller
         }
 
         var roles = await _userManager.GetRolesAsync(user);
-        if (roles.Contains(AppRoles.SuperAdmin))
+        if (roles.Contains(AppRoles.SuperAdmin) && await IsLastSuperAdminAsync(user))
         {
-            var superAdminCount = 0;
-            foreach (var u in await _userManager.GetUsersInRoleAsync(AppRoles.SuperAdmin))
-            {
-                superAdminCount++;
-            }
-
-            if (superAdminCount <= 1)
-            {
-                TempData["Error"] = "ไม่สามารถลบ SuperAdmin คนสุดท้ายได้";
-                return RedirectToAction(nameof(Index));
-            }
+            TempData["Error"] = "ไม่สามารถลบ SuperAdmin คนสุดท้ายได้";
+            return RedirectToAction(nameof(Index));
         }
 
         var email = user.Email ?? user.UserName;
@@ -266,5 +270,11 @@ public class UsersController : Controller
     private SelectList GetAssignableRoles(string? selected = null)
     {
         return new SelectList(AppRoles.AssignableBySuperAdmin, selected);
+    }
+
+    private async Task<bool> IsLastSuperAdminAsync(IdentityUser user)
+    {
+        var superAdmins = await _userManager.GetUsersInRoleAsync(AppRoles.SuperAdmin);
+        return superAdmins.Count <= 1 && superAdmins.Any(u => u.Id == user.Id);
     }
 }

@@ -1,0 +1,30 @@
+## Build
+**/bin/
+**/obj/
+**/out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## IDE / OS
+.vs/
+.idea/
+*.swp
+*~
+Thumbs.db
+Desktop.ini
+
+## Secrets / local config
+**/appsettings.*.local.json
+**/appsettings.Development.json
+**/secrets.json
+.env
+.env.*
+
+## Logs / temp
+*.log
+*.tmp
+*.temp
+import_preview.json
+**/import_preview.json

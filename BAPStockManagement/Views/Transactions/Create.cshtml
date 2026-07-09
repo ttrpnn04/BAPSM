@@ -253,12 +253,26 @@
                     variantHidden.value = v.variantId;
                 }
 
-                btn.innerHTML = `
-                    <code class="variant-chip-btn__sku">${v.sku}</code>
-                    <span class="color-swatch color-swatch--variant-choice" title="${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง">
-                        <span class="color-swatch__fill">${isSale ? v.qtyPieces.toLocaleString() : ''}</span>
-                        <span class="color-swatch__label">${v.label}</span>
-                    </span>`;
+                const skuEl = document.createElement('code');
+                skuEl.className = 'variant-chip-btn__sku';
+                skuEl.textContent = v.sku;
+
+                const swatch = document.createElement('span');
+                swatch.className = 'color-swatch color-swatch--variant-choice';
+                swatch.title = `${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง`;
+
+                const fill = document.createElement('span');
+                fill.className = 'color-swatch__fill';
+                fill.textContent = isSale ? v.qtyPieces.toLocaleString() : '';
+
+                const label = document.createElement('span');
+                label.className = 'color-swatch__label';
+                label.textContent = v.label;
+
+                swatch.appendChild(fill);
+                swatch.appendChild(label);
+                btn.appendChild(skuEl);
+                btn.appendChild(swatch);
                 btn.addEventListener('click', () => selectVariant(btn, v.variantId));
                 variantChips.appendChild(btn);
             });
@@ -282,28 +296,67 @@
 
             txnLines.forEach((line, index) => {
                 const col = resolveColor(line.label);
-                linesBody.insertAdjacentHTML('beforeend', `
-                    <tr>
-                        <td><code>${line.sku}</code></td>
-                        <td>
-                            <span class="color-swatch color-swatch--txn-line" style="--swatch-color:${col.dot}" title="${line.label}">
-                                <span class="color-swatch__fill">${line.qtyPieces ? line.qtyPieces.toLocaleString() : ''}</span>
-                                <span class="color-swatch__label">${line.label}</span>
-                            </span>
-                        </td>
-                        <td class="text-end">${line.qtyPieces.toLocaleString()}</td>
-                        <td class="text-end">${line.qtyCases.toLocaleString()}</td>
-                        <td class="text-end">
-                            <button type="button" class="btn btn-sm btn-outline-danger remove-txn-line" data-index="${index}">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>`);
+                const tr = document.createElement('tr');
 
-                linesInputs.insertAdjacentHTML('beforeend', `
-                    <input type="hidden" name="Lines[${index}].VariantId" value="${line.variantId}" />
-                    <input type="hidden" name="Lines[${index}].QtyPieces" value="${line.qtyPieces}" />
-                    <input type="hidden" name="Lines[${index}].QtyCases" value="${line.qtyCases}" />`);
+                const skuTd = document.createElement('td');
+                const skuCode = document.createElement('code');
+                skuCode.textContent = line.sku;
+                skuTd.appendChild(skuCode);
+
+                const colorTd = document.createElement('td');
+                const swatch = document.createElement('span');
+                swatch.className = 'color-swatch color-swatch--txn-line';
+                swatch.style.setProperty('--swatch-color', col.dot);
+                swatch.title = line.label;
+                const fill = document.createElement('span');
+                fill.className = 'color-swatch__fill';
+                fill.textContent = line.qtyPieces ? line.qtyPieces.toLocaleString() : '';
+                const label = document.createElement('span');
+                label.className = 'color-swatch__label';
+                label.textContent = line.label;
+                swatch.appendChild(fill);
+                swatch.appendChild(label);
+                colorTd.appendChild(swatch);
+
+                const piecesTd = document.createElement('td');
+                piecesTd.className = 'text-end';
+                piecesTd.textContent = line.qtyPieces.toLocaleString();
+
+                const casesTd = document.createElement('td');
+                casesTd.className = 'text-end';
+                casesTd.textContent = line.qtyCases.toLocaleString();
+
+                const actionTd = document.createElement('td');
+                actionTd.className = 'text-end';
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-sm btn-outline-danger remove-txn-line';
+                removeBtn.dataset.index = String(index);
+                removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+                actionTd.appendChild(removeBtn);
+
+                tr.appendChild(skuTd);
+                tr.appendChild(colorTd);
+                tr.appendChild(piecesTd);
+                tr.appendChild(casesTd);
+                tr.appendChild(actionTd);
+                linesBody.appendChild(tr);
+
+                const variantInput = document.createElement('input');
+                variantInput.type = 'hidden';
+                variantInput.name = `Lines[${index}].VariantId`;
+                variantInput.value = String(line.variantId);
+                const piecesInput = document.createElement('input');
+                piecesInput.type = 'hidden';
+                piecesInput.name = `Lines[${index}].QtyPieces`;
+                piecesInput.value = String(line.qtyPieces);
+                const casesInput = document.createElement('input');
+                casesInput.type = 'hidden';
+                casesInput.name = `Lines[${index}].QtyCases`;
+                casesInput.value = String(line.qtyCases);
+                linesInputs.appendChild(variantInput);
+                linesInputs.appendChild(piecesInput);
+                linesInputs.appendChild(casesInput);
             });
         }
 

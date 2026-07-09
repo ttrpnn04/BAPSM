@@ -1,10 +1,7 @@
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=BAPStockDB;Trusted_Connection=True;TrustServerCertificate=True"
-  },
   "SeedSuperAdmin": {
     "Email": "superadmin@bap.local",
-    "Password": "",
+    "Password": "CHANGE_ME_StrongPass1",
     "DisplayName": "ผู้ดูแลระบบ"
   },
   "Logging": {
@@ -12,6 +9,5 @@
       "Default": "Information",
       "Microsoft.AspNetCore": "Warning"
     }
-  },
-  "AllowedHosts": "*"
+  }
 }

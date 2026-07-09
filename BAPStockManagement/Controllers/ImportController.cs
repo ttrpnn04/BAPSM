@@ -15,6 +15,8 @@ namespace BAPStockManagement.Controllers;
 [Authorize(Roles = AppRoles.AdminManage)]
 public class ImportController : Controller
 {
+    private const long MaxExcelFileBytes = 10 * 1024 * 1024; // 10 MB
+
     private static readonly string[] StockStopTokens =
     [
         "ลัง",
@@ -25,11 +27,16 @@ public class ImportController : Controller
 
     private readonly BAPStockContext _context;
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly ILogger<ImportController> _logger;
 
-    public ImportController(BAPStockContext context, UserManager<IdentityUser> userManager)
+    public ImportController(
+        BAPStockContext context,
+        UserManager<IdentityUser> userManager,
+        ILogger<ImportController> logger)
     {
         _context = context;
         _userManager = userManager;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -44,6 +51,8 @@ public class ImportController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxExcelFileBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxExcelFileBytes)]
     public async Task<IActionResult> Index(ExcelImportViewModel model)
     {
         if (model.ExcelFile == null || model.ExcelFile.Length == 0)
@@ -52,10 +61,22 @@ public class ImportController : Controller
             return View(model);
         }
 
+        if (model.ExcelFile.Length > MaxExcelFileBytes)
+        {
+            ModelState.AddModelError(nameof(model.ExcelFile), "ขนาดไฟล์ต้องไม่เกิน 10 MB");
+            return View(model);
+        }
+
         if (!Path.GetExtension(model.ExcelFile.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
         {
             ModelState.AddModelError(nameof(model.ExcelFile), "รองรับเฉพาะไฟล์ .xlsx");
             return View(model);
+        }
+
+        var safeFileName = Path.GetFileName(model.ExcelFile.FileName);
+        if (string.IsNullOrWhiteSpace(safeFileName))
+        {
+            safeFileName = "import.xlsx";
         }
 
         try
@@ -136,7 +157,7 @@ public class ImportController : Controller
                             QtyPieces = variant.QtyPieces,
                             QtyCases = 0,
                             RefNo = importRef,
-                            Note = $"Initial import from Excel: {model.ExcelFile.FileName}",
+                            Note = $"Initial import from Excel: {Truncate(safeFileName, 80)}",
                             CreatedBy = userId
                         });
 
@@ -174,11 +195,19 @@ public class ImportController : Controller
                 .ToList();
             return View(model);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             model.HasResult = true;
             model.IsSuccess = false;
             model.ResultMessage = $"นำเข้าไม่สำเร็จ: {ex.Message}";
+            return View(model);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Excel import failed for file {FileName}", safeFileName);
+            model.HasResult = true;
+            model.IsSuccess = false;
+            model.ResultMessage = "นำเข้าไม่สำเร็จ กรุณาตรวจสอบรูปแบบไฟล์แล้วลองใหม่";
             return View(model);
         }
     }

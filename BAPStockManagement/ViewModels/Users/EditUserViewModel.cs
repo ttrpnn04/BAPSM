@@ -17,7 +17,7 @@ public class EditUserViewModel
     [Display(Name = "ปิดการใช้งาน")]
     public bool IsLocked { get; set; }
 
-    [StringLength(100, MinimumLength = 6, ErrorMessage = "รหัสผ่านต้องมีอย่างน้อย {2} ตัวอักษร")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "รหัสผ่านต้องมีอย่างน้อย {2} ตัวอักษร")]
     [DataType(DataType.Password)]
     [Display(Name = "รหัสผ่านใหม่ (ไม่บังคับ)")]
     public string? NewPassword { get; set; }

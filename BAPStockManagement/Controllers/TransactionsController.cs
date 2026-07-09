@@ -605,83 +605,113 @@ public class TransactionsController : Controller
         var variantIds = submittedLines
             .Select(l => l.VariantId)
             .Distinct()
+            .OrderBy(id => id)
             .ToList();
 
-        var variants = await _context.ProductVariants
-            .Include(v => v.StockBalance)
-            .Where(v =>
-                variantIds.Contains(v.VariantId) &&
-                v.IsActive &&
-                v.Product.IsActive &&
-                v.Product.Category.IsActive)
-            .ToDictionaryAsync(v => v.VariantId);
-
-        if (variants.Count != variantIds.Count)
+        await using var dbTx = await _context.Database.BeginTransactionAsync();
+        try
         {
-            if (isAjax) return BadRequest(new { message = "ไม่พบสินค้าที่เลือก" });
-            ModelState.AddModelError(nameof(model.VariantId), "ไม่พบสินค้าที่เลือก");
-            return View(model);
-        }
-
-        if (!hasLineItems && model.ProductId.HasValue && variants[model.VariantId].ProductId != model.ProductId.Value)
-        {
-            if (isAjax) return BadRequest(new { message = "สี/รุ่นไม่ตรงกับสินค้าที่เลือก" });
-            ModelState.AddModelError(nameof(model.VariantId), "สี/รุ่นไม่ตรงกับสินค้าที่เลือก");
-            return View(model);
-        }
-
-        var txnType = await _context.TransactionTypes
-            .FirstOrDefaultAsync(t => t.TransactionTypeId == model.TransactionTypeId && t.IsActive);
-
-        if (txnType == null)
-        {
-            if (isAjax) return BadRequest(new { message = "ประเภทรายการไม่ถูกต้อง" });
-            ModelState.AddModelError(nameof(model.TransactionTypeId), "ประเภทรายการไม่ถูกต้อง");
-            return View(model);
-        }
-
-        if (txnType.Direction < 0)
-        {
-            foreach (var group in submittedLines.GroupBy(l => l.VariantId))
+            var variants = new List<ProductVariant>();
+            foreach (var variantId in variantIds)
             {
-                var variant = variants[group.Key];
-                var currentPieces = variant.StockBalance?.QtyPieces ?? 0;
-                var currentCases = variant.StockBalance?.QtyCases ?? 0;
-                var requestedPieces = group.Sum(l => l.QtyPieces);
-                var requestedCases = group.Sum(l => l.QtyCases);
+                // Lock balance rows in ascending VariantId order to avoid deadlocks.
+                await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                    UPDATE StockBalances WITH (UPDLOCK, ROWLOCK)
+                    SET LastUpdated = LastUpdated
+                    WHERE VariantID = {variantId}");
 
-                if (requestedPieces > currentPieces || requestedCases > currentCases)
+                var locked = await _context.ProductVariants
+                    .Include(v => v.StockBalance)
+                    .Include(v => v.Product)
+                        .ThenInclude(p => p.Category)
+                    .FirstOrDefaultAsync(v =>
+                        v.VariantId == variantId &&
+                        v.IsActive &&
+                        v.Product.IsActive &&
+                        v.Product.Category.IsActive);
+
+                if (locked == null)
                 {
-                    var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)";
-                    if (isAjax) return BadRequest(new { message = msg });
-                    ModelState.AddModelError(string.Empty, msg);
+                    await dbTx.RollbackAsync();
+                    if (isAjax) return BadRequest(new { message = "ไม่พบสินค้าที่เลือก" });
+                    ModelState.AddModelError(nameof(model.VariantId), "ไม่พบสินค้าที่เลือก");
                     return View(model);
                 }
+
+                variants.Add(locked);
             }
-        }
 
-        var refNo = string.IsNullOrWhiteSpace(model.RefNo) ? null : model.RefNo.Trim();
-        var note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim();
-        var userId = _userManager.GetUserId(User);
-        var transactions = submittedLines.Select(line => new StockTransaction
+            var variantMap = variants.ToDictionary(v => v.VariantId);
+
+            if (!hasLineItems && model.ProductId.HasValue && variantMap[model.VariantId].ProductId != model.ProductId.Value)
             {
-                VariantId = line.VariantId,
-                TransactionTypeId = model.TransactionTypeId,
-                TxnDate = model.TxnDate,
-                QtyPieces = line.QtyPieces,
-                QtyCases = line.QtyCases,
-                RefNo = refNo,
-                Note = note,
-                CreatedBy = userId
-            })
-            .ToList();
+                await dbTx.RollbackAsync();
+                if (isAjax) return BadRequest(new { message = "สี/รุ่นไม่ตรงกับสินค้าที่เลือก" });
+                ModelState.AddModelError(nameof(model.VariantId), "สี/รุ่นไม่ตรงกับสินค้าที่เลือก");
+                return View(model);
+            }
 
-        _context.StockTransactions.AddRange(transactions);
-        await _context.SaveChangesAsync();
+            var txnType = await _context.TransactionTypes
+                .FirstOrDefaultAsync(t => t.TransactionTypeId == model.TransactionTypeId && t.IsActive);
 
-        if (isAjax) return Ok(new { success = true, count = transactions.Count });
-        TempData["Success"] = $"บันทึกรายการสต็อกสำเร็จ {transactions.Count:N0} รายการ";
-        return RedirectToAction(nameof(Index));
+            if (txnType == null)
+            {
+                await dbTx.RollbackAsync();
+                if (isAjax) return BadRequest(new { message = "ประเภทรายการไม่ถูกต้อง" });
+                ModelState.AddModelError(nameof(model.TransactionTypeId), "ประเภทรายการไม่ถูกต้อง");
+                return View(model);
+            }
+
+            if (txnType.Direction < 0)
+            {
+                foreach (var group in submittedLines.GroupBy(l => l.VariantId))
+                {
+                    var variant = variantMap[group.Key];
+                    var currentPieces = variant.StockBalance?.QtyPieces ?? 0;
+                    var currentCases = variant.StockBalance?.QtyCases ?? 0;
+                    var requestedPieces = group.Sum(l => l.QtyPieces);
+                    var requestedCases = group.Sum(l => l.QtyCases);
+
+                    if (requestedPieces > currentPieces || requestedCases > currentCases)
+                    {
+                        var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)";
+                        await dbTx.RollbackAsync();
+                        if (isAjax) return BadRequest(new { message = msg });
+                        ModelState.AddModelError(string.Empty, msg);
+                        return View(model);
+                    }
+                }
+            }
+
+            var refNo = string.IsNullOrWhiteSpace(model.RefNo) ? null : model.RefNo.Trim();
+            var note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim();
+            var userId = _userManager.GetUserId(User);
+            var transactions = submittedLines.Select(line => new StockTransaction
+                {
+                    VariantId = line.VariantId,
+                    TransactionTypeId = model.TransactionTypeId,
+                    TxnDate = model.TxnDate,
+                    QtyPieces = line.QtyPieces,
+                    QtyCases = line.QtyCases,
+                    RefNo = refNo,
+                    Note = note,
+                    CreatedBy = userId
+                })
+                .ToList();
+
+            _context.StockTransactions.AddRange(transactions);
+            await _context.SaveChangesAsync();
+            await dbTx.CommitAsync();
+
+            if (isAjax) return Ok(new { success = true, count = transactions.Count });
+            TempData["Success"] = $"บันทึกรายการสต็อกสำเร็จ {transactions.Count:N0} รายการ";
+            return RedirectToAction(nameof(Index));
+        }
+        catch
+        {
+            await dbTx.RollbackAsync();
+            throw;
+        }
     }
 
     private async Task<int?> EnsureDefaultVariantForProductAsync(int productId)
