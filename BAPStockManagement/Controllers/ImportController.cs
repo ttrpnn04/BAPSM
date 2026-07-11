@@ -86,17 +86,6 @@ public class ImportController : Controller
             var fileBytes = memory.ToArray();
             var importRef = BuildImportRef(fileBytes);
 
-            var duplicateImport = await _context.StockTransactions
-                .AnyAsync(t => t.RefNo == importRef);
-            if (duplicateImport)
-            {
-                model.HasResult = true;
-                model.IsSuccess = false;
-                model.ResultMessage = $"ไฟล์นี้ถูกนำเข้าแล้ว (Ref: {importRef})";
-                model.ImportRef = importRef;
-                return View(model);
-            }
-
             var parsed = ParseWorkbook(fileBytes, model.IncludeZeroStockProducts, model.CategoryName);
             if (parsed.Rows.Count == 0)
             {
@@ -107,6 +96,7 @@ public class ImportController : Controller
             }
 
             var receiveTypeId = await GetOrCreateReceiveTypeAsync();
+            var issueTypeId = await GetOrCreateIssueTypeAsync();
             var userId = _userManager.GetUserId(User);
             var categoryCache = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -135,34 +125,50 @@ public class ImportController : Controller
                         createdProducts++;
                     }
 
-                    if (row.PositiveVariants.Count == 0)
+                    var rowTargetPieces = row.Variants.Sum(v => v.QtyPieces);
+                    totalPieces += rowTargetPieces;
+                    if (rowTargetPieces == 0 && row.Variants.Count == 0)
                     {
                         skippedNoStock++;
                         continue;
                     }
 
-                    foreach (var variant in row.PositiveVariants)
+                    var rowHadAdjustment = false;
+                    foreach (var variant in row.Variants)
                     {
-                        var (variantEntity, createdVariant) = await GetOrCreateVariantAsync(product.ProductId, variant.Name);
+                        var (variantEntity, createdVariant) = await GetOrCreateVariantAsync(product, variant.Name);
                         if (createdVariant)
                         {
                             createdVariants++;
                         }
 
+                        var currentPieces = variantEntity.StockBalance?.QtyPieces ?? 0;
+                        var targetPieces = variant.QtyPieces;
+                        var delta = targetPieces - currentPieces;
+                        if (delta == 0)
+                        {
+                            continue;
+                        }
+
+                        rowHadAdjustment = true;
                         _context.StockTransactions.Add(new StockTransaction
                         {
                             VariantId = variantEntity.VariantId,
-                            TransactionTypeId = receiveTypeId,
+                            TransactionTypeId = delta > 0 ? receiveTypeId : issueTypeId,
                             TxnDate = DateOnly.FromDateTime(DateTime.Today),
-                            QtyPieces = variant.QtyPieces,
+                            QtyPieces = Math.Abs(delta),
                             QtyCases = 0,
                             RefNo = importRef,
-                            Note = $"Initial import from Excel: {Truncate(safeFileName, 80)}",
+                            Note = $"Stock snapshot from Excel ({Truncate(safeFileName, 60)}): set {currentPieces} -> {targetPieces}",
                             CreatedBy = userId
                         });
 
                         importedTransactions++;
-                        totalPieces += variant.QtyPieces;
+                    }
+
+                    if (!rowHadAdjustment && rowTargetPieces == 0)
+                    {
+                        skippedNoStock++;
                     }
                 }
 
@@ -177,7 +183,7 @@ public class ImportController : Controller
 
             model.HasResult = true;
             model.IsSuccess = true;
-            model.ResultMessage = "นำเข้าข้อมูลสำเร็จ";
+            model.ResultMessage = "นำเข้าข้อมูลสำเร็จ (ตั้งยอดสต็อกตามไฟล์ล่าสุด)";
             model.ImportRef = importRef;
             model.ParsedRows = parsed.Rows.Count;
             model.ImportedProducts = importedProducts;
@@ -200,6 +206,14 @@ public class ImportController : Controller
             model.HasResult = true;
             model.IsSuccess = false;
             model.ResultMessage = $"นำเข้าไม่สำเร็จ: {ex.Message}";
+            return View(model);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Excel import failed while saving for file {FileName}", safeFileName);
+            model.HasResult = true;
+            model.IsSuccess = false;
+            model.ResultMessage = "นำเข้าไม่สำเร็จขณะบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง";
             return View(model);
         }
         catch (Exception ex)
@@ -263,6 +277,28 @@ public class ImportController : Controller
         return created.TransactionTypeId;
     }
 
+    private async Task<int> GetOrCreateIssueTypeAsync()
+    {
+        var existing = await _context.TransactionTypes
+            .Where(t => t.Direction < 0 && t.IsActive)
+            .OrderBy(t => t.TransactionTypeId)
+            .FirstOrDefaultAsync();
+        if (existing != null)
+        {
+            return existing.TransactionTypeId;
+        }
+
+        var created = new TransactionType
+        {
+            TypeName = "ปรับยอดลง",
+            Direction = -1,
+            IsActive = true
+        };
+        _context.TransactionTypes.Add(created);
+        await _context.SaveChangesAsync();
+        return created.TransactionTypeId;
+    }
+
     private async Task<(Product Product, bool Created)> GetOrCreateProductAsync(int categoryId, string sku, string productName)
     {
         var normalizedSku = Truncate(sku.Trim(), 50);
@@ -288,15 +324,16 @@ public class ImportController : Controller
             Note = "Imported from Excel"
         };
         _context.Products.Add(created);
+        await _context.SaveChangesAsync();
         return (created, true);
     }
 
-    private async Task<(ProductVariant Variant, bool Created)> GetOrCreateVariantAsync(int productId, string variantName)
+    private async Task<(ProductVariant Variant, bool Created)> GetOrCreateVariantAsync(Product product, string variantName)
     {
         var normalizedVariant = Truncate(variantName.Trim(), 100);
         var variant = await _context.ProductVariants
             .Include(v => v.StockBalance)
-            .FirstOrDefaultAsync(v => v.ProductId == productId && v.VariantName == normalizedVariant);
+            .FirstOrDefaultAsync(v => v.ProductId == product.ProductId && v.VariantName == normalizedVariant);
 
         if (variant != null)
         {
@@ -314,13 +351,14 @@ public class ImportController : Controller
         }
 
         var maxSortOrder = await _context.ProductVariants
-            .Where(v => v.ProductId == productId)
+            .Where(v => v.ProductId == product.ProductId)
             .Select(v => (int?)v.SortOrder)
             .MaxAsync() ?? 0;
 
         var created = new ProductVariant
         {
-            ProductId = productId,
+            ProductId = product.ProductId,
+            Product = product,
             VariantName = normalizedVariant,
             SortOrder = maxSortOrder + 1,
             IsActive = true,
@@ -331,6 +369,7 @@ public class ImportController : Controller
             }
         };
         _context.ProductVariants.Add(created);
+        await _context.SaveChangesAsync();
         return (created, true);
     }
 
@@ -400,25 +439,21 @@ public class ImportController : Controller
                 continue;
             }
 
-            var positiveVariants = new List<ParsedVariant>();
+            var variants = new List<ParsedVariant>();
             foreach (var color in activeColors)
             {
                 var qtyPieces = ParseIntegerCell(sheet.Cell(row, color.ColumnIndex));
-                if (qtyPieces <= 0)
-                {
-                    continue;
-                }
-
-                positiveVariants.Add(new ParsedVariant(color.Name, qtyPieces));
+                variants.Add(new ParsedVariant(color.Name, qtyPieces));
             }
 
-            if (positiveVariants.Count > 0 || includeZeroStockProducts)
+            var hasPositiveStock = variants.Any(v => v.QtyPieces > 0);
+            if (hasPositiveStock || includeZeroStockProducts)
             {
                 rows.Add(new ParsedRow(
                     fixedCategoryName ?? ResolveCategoryBySku(sku),
                     Truncate(sku, 50),
                     Truncate(productName, 300),
-                    positiveVariants));
+                    variants));
             }
         }
 
@@ -513,6 +548,6 @@ public class ImportController : Controller
         string CategoryName,
         string Sku,
         string ProductName,
-        IReadOnlyList<ParsedVariant> PositiveVariants);
+        IReadOnlyList<ParsedVariant> Variants);
     private sealed record ParsedWorkbook(IReadOnlyList<string> ColorHeaders, IReadOnlyList<ParsedRow> Rows);
 }

@@ -39,10 +39,41 @@ public class HomeController : Controller
                 return new
                 {
                     CategoryName = p.Category.CategoryName,
+                    Sku = p.Sku,
+                    ProductName = p.ProductName,
                     VariantCount = activeVariants.Count,
                     QtyPieces = activeVariants.Sum(v => v.StockBalance?.QtyPieces ?? 0),
                     QtyCases = activeVariants.Sum(v => v.StockBalance?.QtyCases ?? 0)
                 };
+            })
+            .ToList();
+
+        var lowStockItems = productStockRows
+            .Where(r => r.QtyPieces > 0 && r.QtyPieces <= 10)
+            .OrderBy(r => r.QtyPieces)
+            .ThenBy(r => r.ProductName)
+            .Take(8)
+            .Select(r => new StockAlertItem
+            {
+                CategoryName = r.CategoryName,
+                Sku = r.Sku,
+                ProductName = r.ProductName,
+                QtyPieces = r.QtyPieces,
+                QtyCases = r.QtyCases
+            })
+            .ToList();
+
+        var outOfStockItems = productStockRows
+            .Where(r => r.QtyPieces == 0 && r.QtyCases == 0)
+            .OrderBy(r => r.ProductName)
+            .Take(8)
+            .Select(r => new StockAlertItem
+            {
+                CategoryName = r.CategoryName,
+                Sku = r.Sku,
+                ProductName = r.ProductName,
+                QtyPieces = r.QtyPieces,
+                QtyCases = r.QtyCases
             })
             .ToList();
 
@@ -127,7 +158,9 @@ public class HomeController : Controller
             MonthTransactionCount = monthTransactions?.Count ?? 0,
             LastTransactionAt = lastTransactionAt,
             CategoryStockChartItems = categoryStockChartItems,
-            DailyMovementChartItems = dailyMovementChartItems
+            DailyMovementChartItems = dailyMovementChartItems,
+            LowStockItems = lowStockItems,
+            OutOfStockItems = outOfStockItems
         });
     }
 
