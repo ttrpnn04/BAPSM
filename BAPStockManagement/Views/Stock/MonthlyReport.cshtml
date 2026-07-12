@@ -209,13 +209,13 @@ else
                     </p>
                     <div class="mb-3">
                         <label class="form-label">จากวันที่</label>
-                        <input type="date" name="fromDate" value="@exportFrom.ToString("yyyy-MM-dd")"
-                               class="form-control" />
+                        <input type="text" name="fromDate" value="@exportFrom.ToString("yyyy-MM-dd")"
+                               class="form-control js-datepicker" placeholder="เลือกวันที่" autocomplete="off" />
                     </div>
                     <div class="mb-0">
                         <label class="form-label">ถึงวันที่</label>
-                        <input type="date" name="toDate" value="@exportTo.ToString("yyyy-MM-dd")"
-                               class="form-control" />
+                        <input type="text" name="toDate" value="@exportTo.ToString("yyyy-MM-dd")"
+                               class="form-control js-datepicker" placeholder="เลือกวันที่" autocomplete="off" />
                     </div>
                 </div>
                 <div class="modal-footer">

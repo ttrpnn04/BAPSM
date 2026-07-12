@@ -696,6 +696,29 @@ a:hover { color: var(--primary-hover); }
   box-shadow: 0 0 0 2px rgba(18,35,63,.12);
 }
 
+input.js-datepicker + .form-control,
+.flatpickr-input.form-control {
+  width: 100%;
+  cursor: pointer;
+  background: var(--surface);
+}
+
+.flatpickr-calendar {
+  font-family: inherit;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(18, 35, 63, 0.12);
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange:hover,
+.flatpickr-day.endRange:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
 .form-check-input:checked {
   background-color: var(--primary);
   border-color: var(--primary);

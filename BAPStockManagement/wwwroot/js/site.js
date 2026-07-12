@@ -92,6 +92,31 @@
     });
   });
 
+  /* ── Thai date pickers (Flatpickr) ── */
+  function initThaiDatePickers(root) {
+    if (typeof flatpickr === 'undefined') return;
+
+    var locale = (flatpickr.l10ns && flatpickr.l10ns.th) || 'default';
+    (root || document).querySelectorAll('input.js-datepicker').forEach(function (control) {
+      if (control._flatpickr) return;
+
+      flatpickr(control, {
+        locale: locale,
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'j F Y',
+        altInputClass: 'form-control',
+        allowInput: false,
+        disableMobile: true,
+        onChange: function () {
+          control.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+    });
+  }
+
+  initThaiDatePickers(document);
+
   /* ── Auto-submit filter bars ── */
   document.querySelectorAll('.filter-bar form[method="get"]').forEach(function (form) {
     var debounceTimer = null;
@@ -112,7 +137,7 @@
       debounceTimer = window.setTimeout(submitFilter, 900);
     }
 
-    form.querySelectorAll('select, input[type="date"], input[type="number"]').forEach(function (control) {
+    form.querySelectorAll('select, input[type="date"], input[type="number"], input.js-datepicker').forEach(function (control) {
       control.addEventListener('change', submitFilter);
     });
 
