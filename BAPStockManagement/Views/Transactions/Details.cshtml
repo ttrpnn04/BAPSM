@@ -1,0 +1,99 @@
+@model BAPStockManagement.ViewModels.Stock.TransactionDocumentDetailsViewModel
+@{
+    ViewData["Title"] = "รายละเอียดบิล";
+    var isOut = Model.Direction < 0;
+    var billName = string.IsNullOrWhiteSpace(Model.RefNo) ? "ไม่ระบุ" : Model.RefNo;
+}
+
+<div class="page-header">
+    <div>
+        <h1>บิล: @billName</h1>
+        <p class="subtitle">
+            @Model.TxnDate.ToString("dd/MM/yyyy")
+            · <span class="badge @(isOut ? "bg-danger" : "bg-success")">@Model.TypeName</span>
+            · @Model.Lines.Count รายการ
+        </p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>กลับประวัติ
+        </a>
+    </div>
+</div>
+
+<div class="card-app mb-3">
+    <div class="row g-3">
+        <div class="col-md-3">
+            <div class="text-muted small">เลขที่อ้างอิง / ร้าน-ลูกค้า</div>
+            <div class="fw-semibold">@billName</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">ผู้บันทึก</div>
+            <div>@(Model.CreatedBy ?? "-")</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">เวลาบันทึก</div>
+            <div>@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+        </div>
+        <div class="col-md-3">
+            <div class="text-muted small">รวมจำนวน</div>
+            <div class="fw-semibold @(isOut ? "text-danger" : "text-success")">
+                @(isOut ? "-" : "+")@Model.TotalPieces.ToString("N0") ชิ้น/กล่อง
+                · @(isOut ? "-" : "+")@Model.TotalCases.ToString("N0") กระสอบ/ลัง
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Note))
+        {
+            <div class="col-12">
+                <div class="text-muted small">หมายเหตุ</div>
+                <div>@Model.Note</div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>หมวดหมู่</th>
+                    <th>SKU</th>
+                    <th>ชื่อสินค้า</th>
+                    <th>สี/รุ่น</th>
+                    <th class="text-end">ชิ้น/กล่อง</th>
+                    <th class="text-end">กระสอบ/ลัง</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.Lines)
+                {
+                    <tr>
+                        <td><span class="text-muted small">@line.CategoryName</span></td>
+                        <td><code>@line.Sku</code></td>
+                        <td class="fw-medium">@line.ProductName</td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(line.VariantName))
+                            {
+                                <span class="color-swatch color-swatch--table" data-vname="@line.VariantName" title="@line.VariantName">
+                                    <span class="color-swatch__fill"></span>
+                                    <span class="color-swatch__label">@line.VariantName</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </td>
+                        <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
+                            @(isOut ? "-" : "+")@line.QtyPieces.ToString("N0")
+                        </td>
+                        <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
+                            @(isOut ? "-" : "+")@line.QtyCases.ToString("N0")
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

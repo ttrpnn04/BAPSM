@@ -25,6 +25,8 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
 
     public virtual DbSet<StockBalance> StockBalances { get; set; }
 
+    public virtual DbSet<StockDocument> StockDocuments { get; set; }
+
     public virtual DbSet<StockTransaction> StockTransactions { get; set; }
 
     public virtual DbSet<TransactionType> TransactionTypes { get; set; }
@@ -113,6 +115,29 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
                 .HasConstraintName("FK_StockBalances_Variants");
         });
 
+        modelBuilder.Entity<StockDocument>(entity =>
+        {
+            entity.HasKey(e => e.DocumentId);
+
+            entity.ToTable("StockDocuments");
+
+            entity.HasIndex(e => e.TxnDate, "IX_StockDocuments_Date");
+            entity.HasIndex(e => e.RefNo, "IX_StockDocuments_RefNo");
+
+            entity.Property(e => e.DocumentId).HasColumnName("DocumentID");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())", "DF_StockDocuments_CreatedAt");
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.Note).HasMaxLength(300);
+            entity.Property(e => e.RefNo).HasMaxLength(50);
+            entity.Property(e => e.TransactionTypeId).HasColumnName("TransactionTypeID");
+            entity.Property(e => e.TxnDate).HasDefaultValueSql("(CONVERT([date],sysdatetime()))", "DF_StockDocuments_TxnDate");
+
+            entity.HasOne(d => d.TransactionType).WithMany(p => p.StockDocuments)
+                .HasForeignKey(d => d.TransactionTypeId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockDocuments_Types");
+        });
+
         modelBuilder.Entity<StockTransaction>(entity =>
         {
             entity.HasKey(e => e.TransactionId);
@@ -123,7 +148,10 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
 
             entity.HasIndex(e => new { e.VariantId, e.TxnDate }, "IX_StockTransactions_Variant_Date");
 
+            entity.HasIndex(e => e.DocumentId, "IX_StockTransactions_DocumentID");
+
             entity.Property(e => e.TransactionId).HasColumnName("TransactionID");
+            entity.Property(e => e.DocumentId).HasColumnName("DocumentID");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())", "DF_StockTransactions_CreatedAt");
             entity.Property(e => e.CreatedBy).HasMaxLength(100);
             entity.Property(e => e.Note).HasMaxLength(300);
@@ -131,6 +159,11 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.TransactionTypeId).HasColumnName("TransactionTypeID");
             entity.Property(e => e.TxnDate).HasDefaultValueSql("(CONVERT([date],sysdatetime()))", "DF_StockTransactions_TxnDate");
             entity.Property(e => e.VariantId).HasColumnName("VariantID");
+
+            entity.HasOne(d => d.Document).WithMany(p => p.StockTransactions)
+                .HasForeignKey(d => d.DocumentId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_StockTransactions_Documents");
 
             entity.HasOne(d => d.TransactionType).WithMany(p => p.StockTransactions)
                 .HasForeignKey(d => d.TransactionTypeId)

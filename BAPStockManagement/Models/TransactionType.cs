@@ -13,5 +13,7 @@ public partial class TransactionType
 
     public bool IsActive { get; set; }
 
+    public virtual ICollection<StockDocument> StockDocuments { get; set; } = new List<StockDocument>();
+
     public virtual ICollection<StockTransaction> StockTransactions { get; set; } = new List<StockTransaction>();
 }

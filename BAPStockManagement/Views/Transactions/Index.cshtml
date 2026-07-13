@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1>ประวัติรายการสต็อก</h1>
-        <p class="subtitle">รายการรับเข้าและจ่ายออกย้อนหลัง · ไม่เลือกวันที่ = ย้อนหลัง 30 วัน</p>
+        <p class="subtitle">แสดงเป็นบิล · กดเข้าไปดูรายการย่อย · ไม่เลือกวันที่ = ย้อนหลัง 30 วัน</p>
     </div>
     @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
     {
@@ -50,7 +50,7 @@
         <div class="col-md-3">
             <label class="form-label">ค้นหา</label>
             <input type="text" name="search" value="@Model.Search" class="form-control"
-                   placeholder="SKU, ชื่อสินค้า, เลขที่อ้างอิง" />
+                   placeholder="ร้าน/เลขที่อ้างอิง, SKU, ชื่อสินค้า" />
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>ค้นหา</button>
@@ -64,7 +64,7 @@
     <div class="card-app">
         <div class="empty-state">
             <div class="empty-icon"><i class="bi bi-journal-x"></i></div>
-            <p class="mb-0">ไม่พบรายการ</p>
+            <p class="mb-0">ไม่พบบิล</p>
         </div>
     </div>
 }
@@ -77,14 +77,12 @@ else
                     <tr>
                         <th>วันที่</th>
                         <th>ประเภท</th>
-                        <th>หมวดหมู่</th>
-                        <th>SKU</th>
-                        <th>ชื่อสินค้า</th>
-                        <th>สี/รุ่น</th>
+                        <th>บิล / ร้าน-ลูกค้า</th>
+                        <th class="text-end">รายการ</th>
                         <th class="text-end">ชิ้น/กล่อง</th>
                         <th class="text-end">กระสอบ/ลัง</th>
-                        <th>เลขที่อ้างอิง</th>
                         <th>ผู้บันทึก</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -96,30 +94,26 @@ else
                             <td>
                                 <span class="badge @(isOut ? "bg-danger" : "bg-success")">@item.TypeName</span>
                             </td>
-                            <td><span class="text-muted small">@item.CategoryName</span></td>
-                            <td><code>@item.Sku</code></td>
-                            <td class="fw-medium">@item.ProductName</td>
-                            <td>
-                                @if (!string.IsNullOrWhiteSpace(item.VariantName))
+                            <td class="fw-medium">
+                                @(string.IsNullOrWhiteSpace(item.RefNo) ? "ไม่ระบุ" : item.RefNo)
+                                @if (!string.IsNullOrWhiteSpace(item.Note))
                                 {
-                                    <span class="color-swatch color-swatch--table" data-vname="@item.VariantName" title="@item.VariantName">
-                                        <span class="color-swatch__fill"></span>
-                                        <span class="color-swatch__label">@item.VariantName</span>
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">-</span>
+                                    <div class="small text-muted fw-normal text-truncate" style="max-width: 280px;" title="@item.Note">@item.Note</div>
                                 }
                             </td>
+                            <td class="text-end">@item.LineCount.ToString("N0")</td>
                             <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
-                                @(isOut ? "-" : "+")@item.QtyPieces.ToString("N0")
+                                @(isOut ? "-" : "+")@item.TotalPieces.ToString("N0")
                             </td>
                             <td class="text-end fw-semibold @(isOut ? "text-danger" : "text-success")">
-                                @(isOut ? "-" : "+")@item.QtyCases.ToString("N0")
+                                @(isOut ? "-" : "+")@item.TotalCases.ToString("N0")
                             </td>
-                            <td>@(item.RefNo ?? "-")</td>
                             <td><span class="text-muted small">@(item.CreatedBy ?? "-")</span></td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@item.DocumentId" class="btn btn-sm btn-outline-primary">
+                                    ดูรายการ
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -129,7 +123,7 @@ else
 
     <div class="d-flex justify-content-between align-items-center mt-3">
         <div class="small text-muted">
-            ทั้งหมด @Model.TotalItems รายการ | หน้า @Model.Page / @Model.TotalPages
+            ทั้งหมด @Model.TotalItems บิล | หน้า @Model.Page / @Model.TotalPages
         </div>
         <nav aria-label="pagination">
             <ul class="pagination pagination-sm mb-0">
@@ -160,4 +154,3 @@ else
         </nav>
     </div>
 }
-

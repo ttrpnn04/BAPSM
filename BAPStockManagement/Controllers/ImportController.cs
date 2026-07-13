@@ -124,6 +124,7 @@ public class ImportController : Controller
             var skippedNoStock = 0;
             var importedVariants = new List<ImportedVariant>();
             var syncStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+            var documentCache = new Dictionary<string, StockDocument>(StringComparer.Ordinal);
 
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
@@ -187,6 +188,7 @@ public class ImportController : Controller
                             var requiredOpeningCases = variant.QtyCases + variant.Issues.Sum(i => i.QtyCases);
 
                             adjustmentTransactions += AddAdjustmentTransactions(
+                                documentCache,
                                 variantEntity.VariantId,
                                 requiredOpeningPieces - currentPieces,
                                 requiredOpeningCases - currentCases,
@@ -201,6 +203,7 @@ public class ImportController : Controller
                         {
                             // นำเข้าซ้ำ: ตั้งยอดให้เท่าคอลัมน์สต็อกล่าสุดโดยตรง ไม่บวกเพิ่ม ไม่ใส่บิลซ้ำ
                             adjustmentTransactions += AddAdjustmentTransactions(
+                                documentCache,
                                 variantEntity.VariantId,
                                 variant.QtyPieces - currentPieces,
                                 variant.QtyCases - currentCases,
@@ -222,15 +225,26 @@ public class ImportController : Controller
                     {
                         foreach (var issue in imported.Parsed.Issues)
                         {
+                            var refNo = $"{importRef}-B{issue.Date.Day:00}";
+                            var note = $"Excel บิล{issue.Date.Day} ({Truncate(safeFileName, 60)})";
+                            var document = GetOrCreatePendingDocument(
+                                documentCache,
+                                issueTypeId,
+                                issue.Date,
+                                refNo,
+                                note,
+                                userId);
+
                             _context.StockTransactions.Add(new StockTransaction
                             {
+                                Document = document,
                                 VariantId = imported.Entity.VariantId,
                                 TransactionTypeId = issueTypeId,
                                 TxnDate = issue.Date,
                                 QtyPieces = issue.QtyPieces,
                                 QtyCases = issue.QtyCases,
-                                RefNo = $"{importRef}-B{issue.Date.Day:00}",
-                                Note = $"Excel บิล{issue.Date.Day} ({Truncate(safeFileName, 60)})",
+                                RefNo = refNo,
+                                Note = note,
                                 CreatedBy = userId
                             });
                             importedIssueTransactions++;
@@ -460,7 +474,35 @@ public class ImportController : Controller
         return (created, true);
     }
 
+    private StockDocument GetOrCreatePendingDocument(
+        Dictionary<string, StockDocument> cache,
+        int transactionTypeId,
+        DateOnly txnDate,
+        string? refNo,
+        string? note,
+        string? userId)
+    {
+        var key = $"{transactionTypeId}|{txnDate:yyyy-MM-dd}|{refNo ?? string.Empty}|{note ?? string.Empty}";
+        if (cache.TryGetValue(key, out var existing))
+        {
+            return existing;
+        }
+
+        var document = new StockDocument
+        {
+            TransactionTypeId = transactionTypeId,
+            TxnDate = txnDate,
+            RefNo = refNo,
+            Note = note,
+            CreatedBy = userId
+        };
+        _context.StockDocuments.Add(document);
+        cache[key] = document;
+        return document;
+    }
+
     private int AddAdjustmentTransactions(
+        Dictionary<string, StockDocument> documentCache,
         int variantId,
         int deltaPieces,
         int deltaCases,
@@ -476,8 +518,17 @@ public class ImportController : Controller
         var receiveCases = Math.Max(0, deltaCases);
         if (receivePieces > 0 || receiveCases > 0)
         {
+            var document = GetOrCreatePendingDocument(
+                documentCache,
+                receiveTypeId,
+                date,
+                refNo,
+                note,
+                userId);
+
             _context.StockTransactions.Add(new StockTransaction
             {
+                Document = document,
                 VariantId = variantId,
                 TransactionTypeId = receiveTypeId,
                 TxnDate = date,
@@ -494,8 +545,17 @@ public class ImportController : Controller
         var issueCases = Math.Max(0, -deltaCases);
         if (issuePieces > 0 || issueCases > 0)
         {
+            var document = GetOrCreatePendingDocument(
+                documentCache,
+                issueTypeId,
+                date,
+                refNo,
+                note,
+                userId);
+
             _context.StockTransactions.Add(new StockTransaction
             {
+                Document = document,
                 VariantId = variantId,
                 TransactionTypeId = issueTypeId,
                 TxnDate = date,

@@ -66,27 +66,27 @@ public class TransactionsController : Controller
             })
             .ToListAsync();
 
-        var query = _context.StockTransactions
+        var query = _context.StockDocuments
             .AsNoTracking()
-            .Include(t => t.TransactionType)
-            .Include(t => t.Variant)
-                .ThenInclude(v => v.Product)
-                    .ThenInclude(p => p.Category)
-            .Where(t => t.TxnDate >= from && t.TxnDate <= to);
+            .Include(d => d.TransactionType)
+            .Include(d => d.StockTransactions)
+            .Where(d => d.TxnDate >= from && d.TxnDate <= to);
 
         if (transactionTypeId.HasValue)
         {
-            query = query.Where(t => t.TransactionTypeId == transactionTypeId.Value);
+            query = query.Where(d => d.TransactionTypeId == transactionTypeId.Value);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            query = query.Where(t =>
-                t.Variant.Product.Sku.Contains(term) ||
-                t.Variant.Product.ProductName.Contains(term) ||
-                t.Variant.VariantName.Contains(term) ||
-                (t.RefNo != null && t.RefNo.Contains(term)));
+            query = query.Where(d =>
+                (d.RefNo != null && d.RefNo.Contains(term)) ||
+                (d.Note != null && d.Note.Contains(term)) ||
+                d.StockTransactions.Any(t =>
+                    t.Variant.Product.Sku.Contains(term) ||
+                    t.Variant.Product.ProductName.Contains(term) ||
+                    t.Variant.VariantName.Contains(term)));
         }
 
         var totalItems = await query.CountAsync();
@@ -94,26 +94,24 @@ public class TransactionsController : Controller
         if (page > totalPages) page = totalPages;
 
         var items = await query
-            .OrderByDescending(t => t.TxnDate)
-            .ThenByDescending(t => t.CreatedAt)
+            .OrderByDescending(d => d.TxnDate)
+            .ThenByDescending(d => d.CreatedAt)
+            .ThenByDescending(d => d.DocumentId)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(t => new TransactionListItemViewModel
+            .Select(d => new TransactionDocumentListItemViewModel
             {
-                TransactionId = t.TransactionId,
-                TxnDate = t.TxnDate,
-                TypeName = t.TransactionType.TypeName,
-                Direction = t.TransactionType.Direction,
-                CategoryName = t.Variant.Product.Category.CategoryName,
-                Sku = t.Variant.Product.Sku,
-                ProductName = t.Variant.Product.ProductName,
-                VariantName = t.Variant.VariantName,
-                QtyPieces = t.QtyPieces,
-                QtyCases = t.QtyCases,
-                RefNo = t.RefNo,
-                Note = t.Note,
-                CreatedBy = t.CreatedBy,
-                CreatedAt = t.CreatedAt
+                DocumentId = d.DocumentId,
+                TxnDate = d.TxnDate,
+                TypeName = d.TransactionType.TypeName,
+                Direction = d.TransactionType.Direction,
+                RefNo = d.RefNo,
+                Note = d.Note,
+                LineCount = d.StockTransactions.Count,
+                TotalPieces = d.StockTransactions.Sum(t => t.QtyPieces),
+                TotalCases = d.StockTransactions.Sum(t => t.QtyCases),
+                CreatedBy = d.CreatedBy,
+                CreatedAt = d.CreatedAt
             })
             .ToListAsync();
 
@@ -153,6 +151,60 @@ public class TransactionsController : Controller
             PageSize = pageSize,
             TotalItems = totalItems
         });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(long id)
+    {
+        var document = await _context.StockDocuments
+            .AsNoTracking()
+            .Include(d => d.TransactionType)
+            .Include(d => d.StockTransactions)
+                .ThenInclude(t => t.Variant)
+                    .ThenInclude(v => v.Product)
+                        .ThenInclude(p => p.Category)
+            .FirstOrDefaultAsync(d => d.DocumentId == id);
+
+        if (document == null)
+        {
+            return NotFound();
+        }
+
+        var createdBy = document.CreatedBy;
+        if (!string.IsNullOrWhiteSpace(createdBy))
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == createdBy);
+            createdBy = user?.Email ?? user?.UserName ?? createdBy;
+        }
+
+        var model = new TransactionDocumentDetailsViewModel
+        {
+            DocumentId = document.DocumentId,
+            TxnDate = document.TxnDate,
+            TypeName = document.TransactionType.TypeName,
+            Direction = document.TransactionType.Direction,
+            RefNo = document.RefNo,
+            Note = document.Note,
+            CreatedBy = createdBy,
+            CreatedAt = document.CreatedAt,
+            Lines = document.StockTransactions
+                .OrderBy(t => t.Variant.Product.Sku)
+                .ThenBy(t => t.Variant.VariantName)
+                .ThenBy(t => t.TransactionId)
+                .Select(t => new TransactionDocumentLineViewModel
+                {
+                    TransactionId = t.TransactionId,
+                    CategoryName = t.Variant.Product.Category.CategoryName,
+                    Sku = t.Variant.Product.Sku,
+                    ProductName = t.Variant.Product.ProductName,
+                    VariantName = t.Variant.VariantName,
+                    QtyPieces = t.QtyPieces,
+                    QtyCases = t.QtyCases
+                })
+                .ToList()
+        };
+
+        return View(model);
     }
 
     [HttpGet]
@@ -705,8 +757,21 @@ public class TransactionsController : Controller
             var refNo = string.IsNullOrWhiteSpace(model.RefNo) ? null : model.RefNo.Trim();
             var note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim();
             var userId = _userManager.GetUserId(User);
+
+            var document = new StockDocument
+            {
+                TransactionTypeId = model.TransactionTypeId,
+                TxnDate = model.TxnDate,
+                RefNo = refNo,
+                Note = note,
+                CreatedBy = userId
+            };
+            _context.StockDocuments.Add(document);
+            await _context.SaveChangesAsync();
+
             var transactions = submittedLines.Select(line => new StockTransaction
                 {
+                    DocumentId = document.DocumentId,
                     VariantId = line.VariantId,
                     TransactionTypeId = model.TransactionTypeId,
                     TxnDate = model.TxnDate,
@@ -722,8 +787,8 @@ public class TransactionsController : Controller
             await _context.SaveChangesAsync();
             await dbTx.CommitAsync();
 
-            if (isAjax) return Ok(new { success = true, count = transactions.Count });
-            TempData["Success"] = $"บันทึกรายการสต็อกสำเร็จ {transactions.Count:N0} รายการ";
+            if (isAjax) return Ok(new { success = true, count = transactions.Count, documentId = document.DocumentId });
+            TempData["Success"] = $"บันทึกบิลสำเร็จ {transactions.Count:N0} รายการ";
             return RedirectToAction(nameof(Index));
         }
         catch

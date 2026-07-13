@@ -30,7 +30,7 @@ public class CreateTransactionViewModel
     public int QtyCases { get; set; }
 
     [MaxLength(50)]
-    [Display(Name = "เลขที่อ้างอิง")]
+    [Display(Name = "เลขที่อ้างอิง / ร้าน-ลูกค้า")]
     public string? RefNo { get; set; }
 
     [MaxLength(300)]

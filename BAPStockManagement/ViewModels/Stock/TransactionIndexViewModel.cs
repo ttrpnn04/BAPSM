@@ -12,7 +12,7 @@ public class TransactionIndexViewModel
 
     public IReadOnlyList<TransactionTypeOption> TransactionTypes { get; set; } = [];
 
-    public IReadOnlyList<TransactionListItemViewModel> Items { get; set; } = [];
+    public IReadOnlyList<TransactionDocumentListItemViewModel> Items { get; set; } = [];
 
     public int Page { get; set; } = 1;
 
@@ -34,15 +34,59 @@ public class TransactionTypeOption
     public string TypeName { get; set; } = string.Empty;
 }
 
-public class TransactionListItemViewModel
+public class TransactionDocumentListItemViewModel
 {
-    public long TransactionId { get; set; }
+    public long DocumentId { get; set; }
 
     public DateOnly TxnDate { get; set; }
 
     public string TypeName { get; set; } = string.Empty;
 
     public short Direction { get; set; }
+
+    public string? RefNo { get; set; }
+
+    public string? Note { get; set; }
+
+    public int LineCount { get; set; }
+
+    public int TotalPieces { get; set; }
+
+    public int TotalCases { get; set; }
+
+    public string? CreatedBy { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+}
+
+public class TransactionDocumentDetailsViewModel
+{
+    public long DocumentId { get; set; }
+
+    public DateOnly TxnDate { get; set; }
+
+    public string TypeName { get; set; } = string.Empty;
+
+    public short Direction { get; set; }
+
+    public string? RefNo { get; set; }
+
+    public string? Note { get; set; }
+
+    public string? CreatedBy { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public IReadOnlyList<TransactionDocumentLineViewModel> Lines { get; set; } = [];
+
+    public int TotalPieces => Lines.Sum(l => l.QtyPieces);
+
+    public int TotalCases => Lines.Sum(l => l.QtyCases);
+}
+
+public class TransactionDocumentLineViewModel
+{
+    public long TransactionId { get; set; }
 
     public string CategoryName { get; set; } = string.Empty;
 
@@ -55,12 +99,4 @@ public class TransactionListItemViewModel
     public int QtyPieces { get; set; }
 
     public int QtyCases { get; set; }
-
-    public string? RefNo { get; set; }
-
-    public string? Note { get; set; }
-
-    public string? CreatedBy { get; set; }
-
-    public DateTime CreatedAt { get; set; }
 }

@@ -61,6 +61,7 @@ app.UseRequestLocalization(new RequestLocalizationOptions
 using (var scope = app.Services.CreateScope())
 {
     await IdentitySeeder.SeedAsync(scope.ServiceProvider);
+    await StockDocumentSeeder.EnsureAsync(scope.ServiceProvider);
     await ProductVariantSeeder.SeedAsync(scope.ServiceProvider);
 }
 
