@@ -664,6 +664,20 @@ public class ImportController : Controller
                 continue;
             }
 
+            sku = NormalizeSku(sku);
+            if (string.IsNullOrWhiteSpace(sku))
+            {
+                continue;
+            }
+
+            // กันกรณีหัวหมวดถูกอ่านเป็นสินค้า
+            if (productName.StartsWith("กลุ่ม", StringComparison.OrdinalIgnoreCase) ||
+                productName.Equals("รหัสสินค้า", StringComparison.OrdinalIgnoreCase))
+            {
+                currentCategory = NormalizeCategoryName(productName);
+                continue;
+            }
+
             var isCaseQuantity = UsesCaseQuantity(currentCategory);
             var parsedVariants = new List<ParsedVariant>();
 
@@ -919,6 +933,18 @@ public class ImportController : Controller
         var hash = SHA256.HashData(fileBytes);
         var hex = Convert.ToHexString(hash);
         return $"EXCEL-{hex[..12]}";
+    }
+
+    private static string NormalizeSku(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        // Excel บางแถวใส่หมายเหตุต่อท้ายรหัส เช่น "BLB-A036 ตะกร้าขาด 9 ใบ"
+        var token = value.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0];
+        return Truncate(token, 50);
     }
 
     private static string NormalizeCategoryName(string? value)

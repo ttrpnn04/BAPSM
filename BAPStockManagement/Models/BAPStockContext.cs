@@ -72,6 +72,7 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.Unit)
                 .HasMaxLength(20)
                 .HasDefaultValue("คัน", "DF_Products_Unit");
+            entity.Property(e => e.SortOrder).HasDefaultValue(0, "DF_Products_SortOrder");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysdatetime())", "DF_Products_UpdatedAt");
 
             entity.HasOne(d => d.Category).WithMany(p => p.Products)

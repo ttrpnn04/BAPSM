@@ -250,12 +250,21 @@ public class TransactionsController : Controller
                     u => u.Email ?? u.UserName ?? u.Id)
             : new Dictionary<string, string>();
 
-        var currentStocks = await _context.VwCurrentStocks
+        var currentStocks = await _context.ProductVariants
             .AsNoTracking()
-            .OrderBy(s => s.CategoryName)
-            .ThenBy(s => s.Sku)
-            .ThenBy(s => s.ProductName)
-            .ThenBy(s => s.VariantName)
+            .Where(v => v.IsActive && v.Product.IsActive && v.Product.Category.IsActive)
+            .Select(v => new StockExportRow
+            {
+                CategoryName = v.Product.Category.CategoryName,
+                CategorySortOrder = v.Product.Category.SortOrder,
+                ProductSortOrder = v.Product.SortOrder,
+                Sku = v.Product.Sku,
+                ProductName = v.Product.ProductName,
+                Unit = v.Product.Unit,
+                VariantName = v.VariantName,
+                QtyPieces = v.StockBalance != null ? v.StockBalance.QtyPieces : 0,
+                QtyCases = v.StockBalance != null ? v.StockBalance.QtyCases : 0
+            })
             .ToListAsync();
 
         using var workbook = new XLWorkbook();
@@ -274,7 +283,7 @@ public class TransactionsController : Controller
             "ขายออก");
 
         var stockSheet = workbook.Worksheets.Add("ยอดคงเหลือ");
-        WriteStockMatrixSheet(stockSheet, currentStocks, from, to);
+        WriteStockMatrixSheet(stockSheet, currentStocks);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -285,36 +294,52 @@ public class TransactionsController : Controller
             fileName);
     }
 
-    private static void WriteStockMatrixSheet(IXLWorksheet worksheet, IReadOnlyList<VwCurrentStock> stocks, DateOnly from, DateOnly to)
+    private sealed class StockExportRow
     {
-        var standardColors = ProductVariantDefaults.ColorNames.ToList();
-        var extraColors = stocks
-            .Select(s => s.VariantName)
-            .Distinct()
-            .Where(name => !standardColors.Contains(name))
-            .OrderBy(name => name)
-            .ToList();
-        var colorColumns = standardColors.Concat(extraColors).ToList();
-        var totalColumn = 4 + colorColumns.Count;
+        public string CategoryName { get; set; } = string.Empty;
+        public int CategorySortOrder { get; set; }
+        public int ProductSortOrder { get; set; }
+        public string Sku { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+        public string VariantName { get; set; } = string.Empty;
+        public int QtyPieces { get; set; }
+        public int QtyCases { get; set; }
+    }
 
-        worksheet.Cell(1, 1).Value = from == to
-            ? $"สต็อกคงเหลือ ณ {from:dd/MM/yyyy}"
-            : $"สต็อกคงเหลือ ({from:dd/MM/yyyy} - {to:dd/MM/yyyy})";
-        worksheet.Range(1, 1, 1, 3).Merge();
-        worksheet.Range(1, 1, 1, 3).Style.Fill.BackgroundColor = XLColor.Black;
-        worksheet.Range(1, 1, 1, 3).Style.Font.FontColor = XLColor.White;
-        worksheet.Range(1, 1, 1, 3).Style.Font.Bold = true;
-        worksheet.Cell(1, totalColumn).Value = "สต็อก";
-        worksheet.Cell(1, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
+    private static void WriteStockMatrixSheet(IXLWorksheet worksheet, IReadOnlyList<StockExportRow> stocks)
+    {
+        var colorColumns = ProductVariantDefaults.ColorNames.ToList();
+        var caseColumn = 4 + colorColumns.Count;
+        var totalColumn = caseColumn + 1;
+        var lastColumn = totalColumn;
+
+        // กลุ่มจักรยาน: รวมยอดก้อนเดียวจาก LION ถึง รถหัดเดิน-2BL-E
+        var bikeCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "กลุ่มจักรบยาน-1(LION)",
+            "กลุ่มจักรยาน-5-BL-V",
+            "กลุ่มรถหัดเดิน-1",
+            "กลุ่มรถหัดเดินไฟฟ้า-1-BL-L",
+            "กลุ่มรถหัดเดิน-1-BL-L",
+            "กลุ่มรถหัดเดิน-2BL-E"
+        };
+
+        worksheet.Cell(1, 4).Value = "สต็อก";
+        worksheet.Range(1, 4, 1, caseColumn).Merge();
+        worksheet.Range(1, 4, 1, caseColumn).Style.Font.Bold = true;
+        worksheet.Range(1, 4, 1, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Range(1, 4, 1, caseColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#D9E1F2");
+
+        worksheet.Cell(1, totalColumn).Value = "รวม";
         worksheet.Cell(1, totalColumn).Style.Font.Bold = true;
         worksheet.Cell(1, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(1, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
 
-        worksheet.Cell(2, 1).Value = "#";
         worksheet.Cell(2, 2).Value = "รหัสสินค้า";
-        worksheet.Cell(2, 3).Value = "รายการสินค้า-แบรนด์";
-        worksheet.Range(2, 1, 2, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF200");
-        worksheet.Range(2, 1, 2, 3).Style.Font.Bold = true;
-        worksheet.Range(2, 1, 2, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(2, 2).Style.Font.Bold = true;
+        worksheet.Cell(2, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF200");
+        worksheet.Cell(2, 2).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
         for (var i = 0; i < colorColumns.Count; i++)
         {
@@ -328,67 +353,246 @@ public class TransactionsController : Controller
             worksheet.Cell(2, column).Style.Alignment.WrapText = true;
         }
 
-        worksheet.Cell(2, totalColumn).Value = "สต็อก";
-        worksheet.Cell(2, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
+        worksheet.Cell(2, caseColumn).Value = "ลัง";
+        worksheet.Cell(2, caseColumn).Style.Font.Bold = true;
+        worksheet.Cell(2, caseColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#FCE4D6");
+        worksheet.Cell(2, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        worksheet.Cell(2, totalColumn).Value = "รวม";
         worksheet.Cell(2, totalColumn).Style.Font.Bold = true;
+        worksheet.Cell(2, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
         worksheet.Cell(2, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-        var groupedStocks = stocks
-            .GroupBy(s => new { s.CategoryName, s.Sku, s.ProductName, s.Unit })
-            .OrderBy(g => g.Key.CategoryName)
-            .ThenBy(g => g.Key.Sku)
-            .ThenBy(g => g.Key.ProductName)
+        var categories = stocks
+            .GroupBy(s => new { s.CategoryName, s.CategorySortOrder })
+            .OrderBy(g => g.Key.CategorySortOrder)
+            .ThenBy(g => g.Key.CategoryName)
+            .Select(g => new
+            {
+                g.Key.CategoryName,
+                Products = g
+                    .GroupBy(s => new { s.ProductSortOrder, s.Sku, s.ProductName, s.Unit })
+                    .OrderBy(p => p.Key.ProductSortOrder == 0 ? int.MaxValue : p.Key.ProductSortOrder)
+                    .ThenBy(p => p.Key.Sku)
+                    .ThenBy(p => p.Key.ProductName)
+                    .ToList()
+            })
             .ToList();
 
-        var row = 3;
-        var index = 1;
-        foreach (var productStock in groupedStocks)
+        var row = 2;
+        var bikeColorTotals = colorColumns.ToDictionary(c => c, _ => 0);
+        var bikeCaseTotal = 0;
+        var bikeGrandTotal = 0;
+        var hasBikeRows = false;
+
+        for (var categoryIndex = 0; categoryIndex < categories.Count; categoryIndex++)
         {
-            var byColor = productStock
-                .GroupBy(s => s.VariantName)
-                .ToDictionary(g => g.Key, g => g.Sum(s => s.QtyPieces));
-            var totalPieces = productStock.Sum(s => s.QtyPieces);
+            var category = categories[categoryIndex];
+            var isBikeCategory = bikeCategoryNames.Contains(category.CategoryName);
+            var nextIsBike = categoryIndex + 1 < categories.Count &&
+                bikeCategoryNames.Contains(categories[categoryIndex + 1].CategoryName);
 
-            worksheet.Cell(row, 1).Value = index++;
-            worksheet.Cell(row, 2).Value = productStock.Key.Sku;
-            worksheet.Cell(row, 3).Value = productStock.Key.ProductName;
-
-            for (var i = 0; i < colorColumns.Count; i++)
+            if (row == 2)
             {
-                var column = 4 + i;
-                var qty = byColor.TryGetValue(colorColumns[i], out var value) ? value : 0;
-                worksheet.Cell(row, column).Value = qty > 0 ? qty : "-";
-                worksheet.Cell(row, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(2, 3).Value = category.CategoryName;
+                worksheet.Cell(2, 3).Style.Font.Bold = true;
+                worksheet.Cell(2, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF200");
+            }
+            else
+            {
+                row++;
+                worksheet.Cell(row, 2).Value = "รหัสสินค้า";
+                worksheet.Cell(row, 3).Value = category.CategoryName;
+                worksheet.Range(row, 2, row, 3).Style.Font.Bold = true;
+                worksheet.Range(row, 2, row, 3).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF200");
             }
 
-            worksheet.Cell(row, totalColumn).Value = totalPieces;
-            worksheet.Cell(row, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
-            worksheet.Cell(row, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            var categoryColorTotals = colorColumns.ToDictionary(c => c, _ => 0);
+            var categoryCaseTotal = 0;
+            var categoryGrandTotal = 0;
+            var indexInCategory = 0;
 
-            if (totalPieces == 0)
+            foreach (var productStock in category.Products)
             {
-                worksheet.Range(row, 1, row, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#FCE4D6");
+                row++;
+                indexInCategory++;
+
+                var variants = productStock.ToList();
+                var isColorProduct = variants.Any(v =>
+                    !string.Equals(v.VariantName, ProductVariantDefaults.StandardVariantName, StringComparison.OrdinalIgnoreCase));
+                var totalPieces = variants.Sum(v => v.QtyPieces);
+                var totalCases = variants.Sum(v => v.QtyCases);
+                var isEmpty = totalPieces == 0 && totalCases == 0;
+                var totalQty = isColorProduct
+                    ? totalPieces
+                    : (ProductUnits.IsCaseUnit(productStock.Key.Unit) ? totalCases : totalPieces);
+
+                worksheet.Cell(row, 1).Value = indexInCategory;
+                worksheet.Cell(row, 2).Value = productStock.Key.Sku;
+                worksheet.Cell(row, 3).Value = productStock.Key.ProductName;
+
+                if (isColorProduct)
+                {
+                    var byColor = variants
+                        .GroupBy(v => v.VariantName)
+                        .ToDictionary(g => g.Key, g => g.Sum(x => x.QtyPieces));
+
+                    for (var i = 0; i < colorColumns.Count; i++)
+                    {
+                        var column = 4 + i;
+                        var colorName = colorColumns[i];
+                        var qty = byColor.TryGetValue(colorName, out var value) ? value : 0;
+                        if (qty > 0)
+                        {
+                            worksheet.Cell(row, column).Value = qty;
+                        }
+
+                        worksheet.Cell(row, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                        categoryColorTotals[colorName] += qty;
+                        if (isBikeCategory)
+                        {
+                            bikeColorTotals[colorName] += qty;
+                        }
+                    }
+
+                    if (totalCases > 0)
+                    {
+                        worksheet.Cell(row, caseColumn).Value = totalCases;
+                    }
+
+                    categoryCaseTotal += totalCases;
+                    if (isBikeCategory)
+                    {
+                        bikeCaseTotal += totalCases;
+                    }
+                }
+                else
+                {
+                    if (totalQty > 0)
+                    {
+                        worksheet.Cell(row, caseColumn).Value = totalQty;
+                    }
+
+                    categoryCaseTotal += totalQty;
+                    if (isBikeCategory)
+                    {
+                        bikeCaseTotal += totalQty;
+                    }
+                }
+
+                worksheet.Cell(row, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                worksheet.Cell(row, totalColumn).Value = totalQty;
+                worksheet.Cell(row, totalColumn).Style.Font.Bold = true;
+                worksheet.Cell(row, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 worksheet.Cell(row, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
+
+                categoryGrandTotal += totalQty;
+                if (isBikeCategory)
+                {
+                    bikeGrandTotal += totalQty;
+                    hasBikeRows = true;
+                }
+
+                if (isEmpty)
+                {
+                    worksheet.Range(row, 1, row, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#FCE4D6");
+                    worksheet.Cell(row, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
+                }
             }
 
-            row++;
+            if (isBikeCategory)
+            {
+                if (!nextIsBike && hasBikeRows)
+                {
+                    row = WriteStockTotalRow(
+                        worksheet,
+                        row,
+                        "รวมจักรยาน (LION - รถหัดเดิน)",
+                        colorColumns,
+                        bikeColorTotals,
+                        bikeCaseTotal,
+                        bikeGrandTotal,
+                        caseColumn,
+                        totalColumn,
+                        lastColumn);
+                }
+            }
+            else
+            {
+                row = WriteStockTotalRow(
+                    worksheet,
+                    row,
+                    $"รวม{category.CategoryName}",
+                    colorColumns,
+                    categoryColorTotals,
+                    categoryCaseTotal,
+                    categoryGrandTotal,
+                    caseColumn,
+                    totalColumn,
+                    lastColumn);
+            }
         }
 
-        var usedRange = worksheet.Range(1, 1, Math.Max(row - 1, 2), totalColumn);
+        var usedRange = worksheet.Range(1, 1, Math.Max(row, 2), lastColumn);
         usedRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         usedRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
         usedRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
         worksheet.Column(1).Width = 5;
         worksheet.Column(2).Width = 16;
-        worksheet.Column(3).Width = 38;
-        for (var column = 4; column <= totalColumn; column++)
+        worksheet.Column(3).Width = 42;
+        for (var column = 4; column <= lastColumn; column++)
         {
-            worksheet.Column(column).Width = column == totalColumn ? 10 : 7;
+            worksheet.Column(column).Width = column == totalColumn ? 8 : (column == caseColumn ? 8 : 7);
         }
 
         worksheet.Row(2).Height = 44;
         worksheet.SheetView.FreezeRows(2);
+        worksheet.SheetView.FreezeColumns(3);
+    }
+
+    private static int WriteStockTotalRow(
+        IXLWorksheet worksheet,
+        int currentRow,
+        string label,
+        IReadOnlyList<string> colorColumns,
+        IReadOnlyDictionary<string, int> colorTotals,
+        int caseTotal,
+        int grandTotal,
+        int caseColumn,
+        int totalColumn,
+        int lastColumn)
+    {
+        var row = currentRow + 1;
+        worksheet.Cell(row, 3).Value = label;
+        worksheet.Range(row, 1, row, 3).Merge();
+        worksheet.Cell(row, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        worksheet.Range(row, 1, row, lastColumn).Style.Font.Bold = true;
+        worksheet.Range(row, 1, row, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#D9EAF7");
+
+        for (var i = 0; i < colorColumns.Count; i++)
+        {
+            var column = 4 + i;
+            var qty = colorTotals[colorColumns[i]];
+            if (qty > 0)
+            {
+                worksheet.Cell(row, column).Value = qty;
+            }
+
+            worksheet.Cell(row, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        if (caseTotal > 0)
+        {
+            worksheet.Cell(row, caseColumn).Value = caseTotal;
+        }
+
+        worksheet.Cell(row, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(row, totalColumn).Value = grandTotal;
+        worksheet.Cell(row, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(row, totalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#92D050");
+        return row;
     }
 
     private static void WriteTransactionMatrixSheet(

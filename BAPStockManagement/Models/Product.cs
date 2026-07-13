@@ -15,6 +15,8 @@ public partial class Product
 
     public string Unit { get; set; } = null!;
 
+    public int SortOrder { get; set; }
+
     public bool IsActive { get; set; }
 
     public string? Note { get; set; }
