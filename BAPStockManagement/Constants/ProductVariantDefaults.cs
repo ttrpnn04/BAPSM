@@ -4,7 +4,7 @@ public static class ProductVariantDefaults
 {
     public const string StandardVariantName = "มาตรฐาน";
 
-    // ชื่อสีต้องตรงกับหัวตารางใน Excel
+    // ชื่อสีต้องตรงกับหัวตารางใน Excel (ไม่มีเขียวอ่อน / ชมพูอ่อน)
     public static readonly string[] ColorNames =
     [
         "แดง",
@@ -12,8 +12,6 @@ public static class ProductVariantDefaults
         "ฟ้า",
         "ส้ม",
         "เขียว",
-        "เขียวอ่อน",
-        "ชมพูอ่อน",
         "ชมเข้ม/ชม/ชม",
         "เหลือง/ทอง/ครีม",
         "ม่วง",
@@ -23,11 +21,13 @@ public static class ProductVariantDefaults
         "เทา"
     ];
 
-    // ชื่อเก่า/พิมพ์ผิด → ชื่อตาม Excel
+    // ชื่อเก่า/พิมพ์ผิด / สีที่ยกเลิก → ชื่อตาม Excel
     public static readonly IReadOnlyDictionary<string, string> VariantAliases =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["เขียวออ่อน"] = "เขียวอ่อน",
+            ["เขียวออ่อน"] = "เขียว",
+            ["เขียวอ่อน"] = "เขียว",
+            ["ชมพูอ่อน"] = "ชมเข้ม/ชม/ชม",
             ["เหลืองฝทอง/ครีม"] = "เหลือง/ทอง/ครีม",
             ["ชมพูเข้ม"] = "ชมเข้ม/ชม/ชม",
             ["วัว/ขาว/แดง"] = "วัว/ขาว /แดง",

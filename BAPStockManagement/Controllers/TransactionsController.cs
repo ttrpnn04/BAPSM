@@ -353,10 +353,11 @@ public class TransactionsController : Controller
             worksheet.Cell(2, column).Style.Alignment.WrapText = true;
         }
 
-        worksheet.Cell(2, caseColumn).Value = "ลัง";
+        worksheet.Cell(2, caseColumn).Value = ProductUnits.Case;
         worksheet.Cell(2, caseColumn).Style.Font.Bold = true;
         worksheet.Cell(2, caseColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#FCE4D6");
         worksheet.Cell(2, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(2, caseColumn).Style.Alignment.WrapText = true;
 
         worksheet.Cell(2, totalColumn).Value = "รวม";
         worksheet.Cell(2, totalColumn).Style.Font.Bold = true;
@@ -434,8 +435,10 @@ public class TransactionsController : Controller
                 if (isColorProduct)
                 {
                     var byColor = variants
-                        .GroupBy(v => v.VariantName)
-                        .ToDictionary(g => g.Key, g => g.Sum(x => x.QtyPieces));
+                        .GroupBy(v => ProductVariantDefaults.NormalizeVariantName(v.VariantName))
+                        .Where(g => !string.IsNullOrWhiteSpace(g.Key) &&
+                                    !g.Key.Equals(ProductVariantDefaults.StandardVariantName, StringComparison.OrdinalIgnoreCase))
+                        .ToDictionary(g => g.Key, g => g.Sum(x => x.QtyPieces), StringComparer.OrdinalIgnoreCase);
 
                     for (var i = 0; i < colorColumns.Count; i++)
                     {
@@ -544,7 +547,7 @@ public class TransactionsController : Controller
         worksheet.Column(3).Width = 42;
         for (var column = 4; column <= lastColumn; column++)
         {
-            worksheet.Column(column).Width = column == totalColumn ? 8 : (column == caseColumn ? 8 : 7);
+            worksheet.Column(column).Width = column == totalColumn ? 8 : (column == caseColumn ? 14 : 7);
         }
 
         worksheet.Row(2).Height = 44;
@@ -604,9 +607,12 @@ public class TransactionsController : Controller
     {
         var standardColors = ProductVariantDefaults.ColorNames.ToList();
         var extraColors = transactions
-            .Select(t => t.Variant.VariantName)
-            .Distinct()
-            .Where(name => !standardColors.Contains(name))
+            .Select(t => ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName))
+            .Where(name =>
+                !string.IsNullOrWhiteSpace(name) &&
+                !name.Equals(ProductVariantDefaults.StandardVariantName, StringComparison.OrdinalIgnoreCase) &&
+                !standardColors.Contains(name, StringComparer.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name)
             .ToList();
         var colorColumns = standardColors.Concat(extraColors).ToList();
@@ -670,8 +676,8 @@ public class TransactionsController : Controller
         foreach (var productTransactions in groupedTransactions)
         {
             var byColor = productTransactions
-                .GroupBy(t => t.Variant.VariantName)
-                .ToDictionary(g => g.Key, g => g.Sum(t => t.QtyPieces));
+                .GroupBy(t => ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName))
+                .ToDictionary(g => g.Key, g => g.Sum(t => t.QtyPieces), StringComparer.OrdinalIgnoreCase);
             var totalPieces = productTransactions.Sum(t => t.QtyPieces);
 
             worksheet.Cell(row, 1).Value = index++;
@@ -704,7 +710,8 @@ public class TransactionsController : Controller
         {
             var column = 4 + i;
             var total = transactions
-                .Where(t => t.Variant.VariantName == colorColumns[i])
+                .Where(t => ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName)
+                    .Equals(colorColumns[i], StringComparison.OrdinalIgnoreCase))
                 .Sum(t => t.QtyPieces);
             worksheet.Cell(summaryRow, column).Value = total > 0 ? total : "-";
             worksheet.Cell(summaryRow, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -736,9 +743,7 @@ public class TransactionsController : Controller
         if (name.Contains("น้ำเงิน")) return XLColor.FromHtml("#4472C4");
         if (name.Contains("ฟ้า") || name.Contains("ธงฟ้า")) return XLColor.FromHtml("#5CE1E6");
         if (name.Contains("ส้ม")) return XLColor.FromHtml("#ED7D31");
-        if (name.Contains("เขียวออ่อน") || name.Contains("เขียวอ่อน")) return XLColor.FromHtml("#C6EF8C");
         if (name.Contains("เขียว")) return XLColor.FromHtml("#92D050");
-        if (name.Contains("ชมพูอ่อน")) return XLColor.FromHtml("#FCE4D6");
         if (name.Contains("ชมพู") || name.Contains("ชม")) return XLColor.FromHtml("#FF99FF");
         if (name.Contains("เหลือง") || name.Contains("ทอง") || name.Contains("ครีม")) return XLColor.FromHtml("#FFFF00");
         if (name.Contains("ม่วง")) return XLColor.FromHtml("#E4C1E0");
@@ -864,7 +869,7 @@ public class TransactionsController : Controller
 
         if (submittedLines.Count == 0)
         {
-            ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้น/กล่องหรือกระสอบ/ลังอย่างน้อย 1 รายการ");
+            ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้นหรือกระสอบ/ลัง/เส้นอย่างน้อย 1 รายการ");
         }
 
         if (!ModelState.IsValid)
@@ -949,7 +954,7 @@ public class TransactionsController : Controller
 
                     if (requestedPieces > currentPieces || requestedCases > currentCases)
                     {
-                        var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น/กล่อง, {currentCases:N0} กระสอบ/ลัง)";
+                        var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} กระสอบ/ลัง/เส้น)";
                         await dbTx.RollbackAsync();
                         if (isAjax) return BadRequest(new { message = msg });
                         ModelState.AddModelError(string.Empty, msg);

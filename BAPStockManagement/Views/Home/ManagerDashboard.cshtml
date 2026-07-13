@@ -18,7 +18,7 @@
             <div>
                 <div class="stat-label">สต็อกคงเหลือ</div>
                 <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
-                <div class="stat-sub">@Model.TotalCases.ToString("N0") กระสอบ/ลัง จาก @Model.ActiveVariantCount.ToString("N0") สี/รุ่น</div>
+                <div class="stat-sub">@Model.TotalCases.ToString("N0") กระสอบ/ลัง/เส้น จาก @Model.ActiveVariantCount.ToString("N0") สี/รุ่น</div>
             </div>
             <div class="stat-icon"><i class="bi bi-boxes"></i></div>
         </div>
@@ -29,7 +29,7 @@
             <div>
                 <div class="stat-label">ควรติดตาม</div>
                 <div class="stat-value">@Model.LowStockProductCount.ToString("N0")</div>
-                <div class="stat-sub">สินค้าเหลือไม่เกิน 10 ชิ้น/กล่อง</div>
+                <div class="stat-sub">สินค้าเหลือไม่เกิน 10 ชิ้น</div>
             </div>
             <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
         </div>
@@ -62,7 +62,7 @@
             <div>
                 <div class="stat-label">รับเข้าเดือนนี้</div>
                 <div class="stat-value">@Model.MonthInPieces.ToString("N0")</div>
-                <div class="stat-sub">ชิ้น/กล่อง</div>
+                <div class="stat-sub">ชิ้น</div>
             </div>
             <div class="stat-icon"><i class="bi bi-arrow-down-circle"></i></div>
         </div>
@@ -73,7 +73,7 @@
             <div>
                 <div class="stat-label">จ่ายออกเดือนนี้</div>
                 <div class="stat-value">@Model.MonthOutPieces.ToString("N0")</div>
-                <div class="stat-sub">ชิ้น/กล่อง</div>
+                <div class="stat-sub">ชิ้น</div>
             </div>
             <div class="stat-icon"><i class="bi bi-arrow-up-circle"></i></div>
         </div>
@@ -178,7 +178,7 @@
                                 <th>หมวดหมู่</th>
                                 <th>SKU</th>
                                 <th>สินค้า</th>
-                                <th class="text-end">ชิ้น/กล่อง</th>
+                                <th class="text-end">ชิ้น</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -203,7 +203,7 @@
             <div class="chart-card__header">
                 <div>
                     <h2>สินค้าหมดสต็อก</h2>
-                    <p>รายการที่ไม่มีคงเหลือทั้งชิ้น/กล่องและกระสอบ/ลัง</p>
+                    <p>รายการที่ไม่มีคงเหลือทั้งชิ้นและกระสอบ/ลัง/เส้น</p>
                 </div>
                 <i class="bi bi-dash-circle"></i>
             </div>
@@ -221,7 +221,7 @@
                                 <th>หมวดหมู่</th>
                                 <th>SKU</th>
                                 <th>สินค้า</th>
-                                <th class="text-end">กระสอบ/ลัง</th>
+                                <th class="text-end">กระสอบ/ลัง/เส้น</th>
                             </tr>
                         </thead>
                         <tbody>

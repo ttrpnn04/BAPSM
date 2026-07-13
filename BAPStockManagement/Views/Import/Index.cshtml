@@ -39,7 +39,7 @@
         <div>ระบบอ่านหมวดหมู่จากหัวข้อในคอลัมน์ C และอ่านเดือน/ปีจากชื่อไฟล์แบบ MMYY เช่น 0769</div>
         <div>คอลัมน์สต็อกขวาสุด = ยอดปัจจุบัน (ตั้งค่าแทนที่ ไม่บวกเพิ่ม)</div>
         <div>ไฟล์ใหม่: นำเข้าประวัติบิล + ตั้งยอดล่าสุด / ไฟล์เดิมที่เคยนำเข้าแล้ว: ซิงก์ยอดล่าสุดอย่างเดียว ไม่ใส่บิลซ้ำ</div>
-        <div>สีใช้ชื่อตาม Excel 14 สี และยางใน COLUN/BLUE นับเป็นกระสอบ/ลัง</div>
+        <div>สีใช้ชื่อตาม Excel 14 สี และยางใน COLUN/BLUE นับเป็นกระสอบ/ลัง/เส้น</div>
     </div>
 </div>
 
@@ -101,8 +101,8 @@
             <div class="stat-card stat-warning">
                 <div>
                     <div class="stat-label">ยอดล่าสุด</div>
-                    <div class="stat-value">@Model.TotalPieces.ToString("N0") ชิ้น/กล่อง</div>
-                    <div class="small">@Model.TotalCases.ToString("N0") กระสอบ/ลัง</div>
+                    <div class="stat-value">@Model.TotalPieces.ToString("N0") ชิ้น</div>
+                    <div class="small">@Model.TotalCases.ToString("N0") กระสอบ/ลัง/เส้น</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-calculator"></i></div>
             </div>

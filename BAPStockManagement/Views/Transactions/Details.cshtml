@@ -38,8 +38,8 @@
         <div class="col-md-3">
             <div class="text-muted small">รวมจำนวน</div>
             <div class="fw-semibold @(isOut ? "text-danger" : "text-success")">
-                @(isOut ? "-" : "+")@Model.TotalPieces.ToString("N0") ชิ้น/กล่อง
-                · @(isOut ? "-" : "+")@Model.TotalCases.ToString("N0") กระสอบ/ลัง
+                @(isOut ? "-" : "+")@Model.TotalPieces.ToString("N0") ชิ้น
+                · @(isOut ? "-" : "+")@Model.TotalCases.ToString("N0") กระสอบ/ลัง/เส้น
             </div>
         </div>
         @if (!string.IsNullOrWhiteSpace(Model.Note))
@@ -61,8 +61,8 @@
                     <th>SKU</th>
                     <th>ชื่อสินค้า</th>
                     <th>สี/รุ่น</th>
-                    <th class="text-end">ชิ้น/กล่อง</th>
-                    <th class="text-end">กระสอบ/ลัง</th>
+                    <th class="text-end">ชิ้น</th>
+                    <th class="text-end">กระสอบ/ลัง/เส้น</th>
                 </tr>
             </thead>
             <tbody>

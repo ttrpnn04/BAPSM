@@ -70,8 +70,8 @@
         <thead class="table-light">
             <tr>
                 <th>สี/รุ่น</th>
-                <th class="text-end">ชิ้น/กล่อง</th>
-                <th class="text-end">กระสอบ/ลัง</th>
+                <th class="text-end">ชิ้น</th>
+                <th class="text-end">กระสอบ/ลัง/เส้น</th>
                 <th>สถานะ</th>
                 <th class="text-end">จัดการ</th>
             </tr>
@@ -83,7 +83,7 @@
                     <td>
                         <span class="color-swatch color-swatch--table @(!variant.IsActive ? "color-swatch--empty" : "")"
                               data-vname="@variant.VariantName"
-                              title="@variant.VariantName — @variant.QtyPieces.ToString("N0") ชิ้น/กล่อง">
+                              title="@variant.VariantName — @variant.QtyPieces.ToString("N0") ชิ้น">
                             <span class="color-swatch__fill">@(variant.QtyPieces > 0 ? variant.QtyPieces.ToString("N0") : "")</span>
                             <span class="color-swatch__label">@variant.VariantName</span>
                         </span>

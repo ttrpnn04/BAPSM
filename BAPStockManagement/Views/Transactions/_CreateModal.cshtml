@@ -73,7 +73,7 @@
                value="@(Model.QtyPieces > 0 ? Model.QtyPieces.ToString() : (Model.QtyCases > 0 ? Model.QtyCases.ToString() : null))" />
         <input type="hidden" name="QtyPieces" value="@(Model.QtyPieces > 0 ? Model.QtyPieces.ToString() : "0")" />
         <input type="hidden" name="QtyCases" value="@(Model.QtyCases > 0 ? Model.QtyCases.ToString() : "0")" />
-        <div class="form-text" id="qtyFieldHint">ระบบจะแยกเป็นชิ้น/กล่อง หรือ กระสอบ/ลัง ให้อัตโนมัติตามสินค้าที่เลือก</div>
+        <div class="form-text" id="qtyFieldHint">ระบบจะแยกเป็นชิ้น หรือ กระสอบ/ลัง/เส้น ให้อัตโนมัติตามสินค้าที่เลือก</div>
     </div>
 
     <div class="mb-3">

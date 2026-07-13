@@ -46,7 +46,7 @@
                 <div>
                     <div class="stat-label">สต็อกรวม</div>
                     <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
-                    <div class="stat-sub">@Model.TotalCases.ToString("N0") กระสอบ/ลัง</div>
+                    <div class="stat-sub">@Model.TotalCases.ToString("N0") กระสอบ/ลัง/เส้น</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
             </div>
@@ -60,7 +60,7 @@
                 <div>
                     <div class="stat-label">สินค้าใกล้หมด</div>
                     <div class="stat-value">@Model.LowStockCount</div>
-                    <div class="stat-sub">เหลือ ≤ 10 ชิ้น/กล่อง</div>
+                    <div class="stat-sub">เหลือ ≤ 10 ชิ้น</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
             </div>
@@ -163,8 +163,8 @@ else
                         <th>SKU</th>
                         <th>ชื่อสินค้า</th>
                         <th>สี/รุ่น</th>
-                        <th class="text-end">ชิ้น/กล่อง</th>
-                        <th class="text-end">กระสอบ/ลัง</th>
+                        <th class="text-end">ชิ้น</th>
+                        <th class="text-end">กระสอบ/ลัง/เส้น</th>
                         <th>หน่วย</th>
                         <th>อัปเดตล่าสุด</th>
                     </tr>
@@ -186,7 +186,7 @@ else
                                             var colorEmpty = color.QtyPieces == 0;
                                             <span class="color-swatch @(colorEmpty ? "color-swatch--empty" : "")"
                                                   data-vname="@color.VariantName"
-                                                  title="@color.VariantName — @(colorEmpty ? "หมด" : color.QtyPieces.ToString("N0") + " ชิ้น/กล่อง")">
+                                                  title="@color.VariantName — @(colorEmpty ? "หมด" : color.QtyPieces.ToString("N0") + " ชิ้น")">
                                                 <span class="color-swatch__fill">@(colorEmpty ? "" : color.QtyPieces.ToString("N0"))</span>
                                                 <span class="color-swatch__label">@color.VariantName</span>
                                             </span>
@@ -403,10 +403,10 @@ else
 
         function stockLabel(v) {
             if (v.qtyPieces > 0 && v.qtyCases > 0) {
-                return `${v.qtyPieces.toLocaleString()} ชิ้น/กล่อง / ${v.qtyCases.toLocaleString()} กระสอบ/ลัง`;
+                return `${v.qtyPieces.toLocaleString()} ชิ้น / ${v.qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น`;
             }
-            if (v.qtyCases > 0) return `${v.qtyCases.toLocaleString()} กระสอบ/ลัง`;
-            return `${v.qtyPieces.toLocaleString()} ชิ้น/กล่อง`;
+            if (v.qtyCases > 0) return `${v.qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น`;
+            return `${v.qtyPieces.toLocaleString()} ชิ้น`;
         }
 
         function buildChips(productId) {
@@ -458,7 +458,7 @@ else
 
                 const label = document.createElement('span');
                 label.className = 'color-swatch__label';
-                label.textContent = v.label === 'มาตรฐาน' ? (caseOnly ? 'กระสอบ/ลัง' : 'มาตรฐาน') : v.label;
+                label.textContent = v.label === 'มาตรฐาน' ? (caseOnly ? 'กระสอบ/ลัง/เส้น' : 'มาตรฐาน') : v.label;
 
                 swatch.appendChild(fill);
                 swatch.appendChild(label);
@@ -490,14 +490,14 @@ else
         function updateQtyFieldForVariant(variant) {
             const caseItem = isCaseVariant(variant);
             if (qtyFieldLabel) {
-                qtyFieldLabel.textContent = caseItem ? 'จำนวน (กระสอบ/ลัง)' : 'จำนวน (ชิ้น/กล่อง)';
+                qtyFieldLabel.textContent = caseItem ? 'จำนวน (กระสอบ/ลัง/เส้น)' : 'จำนวน (ชิ้น)';
             }
             if (qtyFieldHint) {
                 qtyFieldHint.textContent = caseItem
-                    ? 'สินค้านี้บันทึกเป็นกระสอบ/ลัง'
-                    : 'สินค้านี้บันทึกเป็นชิ้น/กล่อง';
+                    ? 'สินค้านี้บันทึกเป็นกระสอบ/ลัง/เส้น'
+                    : 'สินค้านี้บันทึกเป็นชิ้น';
             }
-            qtyValueInput.placeholder = caseItem ? 'กรอกจำนวนกระสอบ/ลัง' : 'กรอกจำนวนชิ้น/กล่อง';
+            qtyValueInput.placeholder = caseItem ? 'กรอกจำนวนกระสอบ/ลัง/เส้น' : 'กรอกจำนวนชิ้น';
         }
 
         function selectVariant(btn, id) {
@@ -566,7 +566,7 @@ else
                     : (line.qtyCases ? line.qtyCases.toLocaleString() : '');
                 const label = document.createElement('span');
                 label.className = 'color-swatch__label';
-                label.textContent = line.label === 'มาตรฐาน' ? 'กระสอบ/ลัง' : line.label;
+                label.textContent = line.label === 'มาตรฐาน' ? 'กระสอบ/ลัง/เส้น' : line.label;
                 swatch.appendChild(fill);
                 swatch.appendChild(label);
                 colorTd.appendChild(swatch);
@@ -574,8 +574,8 @@ else
                 const qtyTd = document.createElement('td');
                 qtyTd.className = 'text-end';
                 qtyTd.textContent = line.qtyCases > 0
-                    ? `${line.qtyCases.toLocaleString()} กระสอบ/ลัง`
-                    : `${line.qtyPieces.toLocaleString()} ชิ้น/กล่อง`;
+                    ? `${line.qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น`
+                    : `${line.qtyPieces.toLocaleString()} ชิ้น`;
 
                 const actionTd = document.createElement('td');
                 actionTd.className = 'text-end';
@@ -622,8 +622,8 @@ else
 
             if (qty === 0) {
                 if (showAlert) alert(isCaseVariant(variant)
-                    ? 'กรุณาระบุจำนวนกระสอบ/ลังอย่างน้อย 1'
-                    : 'กรุณาระบุจำนวนชิ้น/กล่องอย่างน้อย 1');
+                    ? 'กรุณาระบุจำนวนกระสอบ/ลัง/เส้นอย่างน้อย 1'
+                    : 'กรุณาระบุจำนวนชิ้นอย่างน้อย 1');
                 return false;
             }
 
@@ -801,7 +801,7 @@ else
         const swatch = document.createElement('span');
         swatch.className = `color-swatch color-swatch--table${empty ? ' color-swatch--empty' : ''}`;
         swatch.style.setProperty('--swatch-color', col.dot);
-        swatch.title = `${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น/กล่อง'}`;
+        swatch.title = `${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น'}`;
 
         const fill = document.createElement('span');
         fill.className = 'color-swatch__fill';
@@ -819,7 +819,7 @@ else
     async function openAlertModal(alertType) {
         const isOut = alertType === 'out';
         const icon  = isOut ? 'bi-x-circle text-danger' : 'bi-exclamation-triangle text-warning';
-        const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น/กล่อง)';
+        const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น)';
 
         const titleEl = document.getElementById('alertModalTitle');
         titleEl.textContent = '';
@@ -867,7 +867,7 @@ else
             }
             const piecesHead = document.createElement('th');
             piecesHead.className = 'text-end text-muted small fw-normal';
-            piecesHead.textContent = 'ชิ้น/กล่องรวม';
+            piecesHead.textContent = 'ชิ้นรวม';
             headRow.appendChild(piecesHead);
             thead.appendChild(headRow);
 

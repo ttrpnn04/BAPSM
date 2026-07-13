@@ -20,13 +20,6 @@ public class ImportController : Controller
     private const long MaxExcelFileBytes = 10 * 1024 * 1024; // 10 MB
     private const string StandardVariantName = ProductVariantDefaults.StandardVariantName;
 
-    private static readonly HashSet<string> CaseQuantityCategories =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            "ยางในจักรยาน-COLUN",
-            "ยางในมอเตอร์ไซค์ BLUE"
-        };
-
     private readonly BAPStockContext _context;
     private readonly UserManager<IdentityUser> _userManager;
     private readonly ILogger<ImportController> _logger;
@@ -148,7 +141,9 @@ public class ImportController : Controller
                     {
                         categoryId = await GetOrCreateCategoryAsync(
                             row.CategoryName,
-                            UsesStandardVariant(row.CategoryName) ? "หน่วย" : "สี");
+                            ProductCatalogRules.UsesStandardVariant(row.CategoryName, row.ProductName)
+                                ? "หน่วย"
+                                : "สี");
                         categoryCache[row.CategoryName] = categoryId;
                     }
 
@@ -678,10 +673,12 @@ public class ImportController : Controller
                 continue;
             }
 
-            var isCaseQuantity = UsesCaseQuantity(currentCategory);
+            var isPackedCase = ProductCatalogRules.UsesPackedCaseCategory(currentCategory);
+            var isLooseCase = ProductCatalogRules.UsesLooseCaseUnit(currentCategory, productName);
+            var isCaseQuantity = isPackedCase || isLooseCase;
             var parsedVariants = new List<ParsedVariant>();
 
-            if (isCaseQuantity)
+            if (isPackedCase)
             {
                 var packSize = ParsePackSize(productName);
                 var targetCases = ParseIntegerCell(
@@ -715,7 +712,40 @@ public class ImportController : Controller
                 if (unexpectedColorQty > 0)
                 {
                     throw new InvalidOperationException(
-                        $"แถว {row} ({sku}) เป็นสินค้านับกระสอบ/ลัง แต่พบยอดในคอลัมน์สี");
+                        $"แถว {row} ({sku}) เป็นสินค้านับกระสอบ/ลัง/เส้น แต่พบยอดในคอลัมน์สี");
+                }
+
+                parsedVariants.Add(new ParsedVariant(
+                    StandardVariantName,
+                    0,
+                    targetCases,
+                    issues));
+            }
+            else if (isLooseCase)
+            {
+                // ยางนอก / สินค้าคละสี: ยอดมักอยู่คอลัมน์ขาว (หรือลัง) → นับเป็นกระสอบ/ลัง/เส้นตรง ๆ
+                var targetCases =
+                    colorColumns.Sum(c => ParseIntegerCell(sheet.Cell(row, c.ColumnIndex))) +
+                    ParseIntegerCell(sheet.Cell(row, latestStock.Columns[caseColumnIndex].ColumnIndex));
+                var issues = new List<ParsedIssue>();
+
+                for (var dayIndex = 0; dayIndex < billBlocks.Count; dayIndex++)
+                {
+                    var billColumns = billBlocks[dayIndex].Columns;
+                    var rawIssue =
+                        colorColumns.Select((_, colorIndex) =>
+                                ParseIntegerCell(sheet.Cell(row, billColumns[colorIndex].ColumnIndex)))
+                            .Sum() +
+                        ParseIntegerCell(sheet.Cell(row, billColumns[caseColumnIndex].ColumnIndex));
+                    if (rawIssue == 0)
+                    {
+                        continue;
+                    }
+
+                    issues.Add(new ParsedIssue(
+                        new DateOnly(year, month, dayIndex + 1),
+                        0,
+                        rawIssue));
                 }
 
                 parsedVariants.Add(new ParsedVariant(
@@ -726,8 +756,18 @@ public class ImportController : Controller
             }
             else
             {
+                var colorQtyByName = new Dictionary<string, (int Pieces, List<ParsedIssue> Issues)>(
+                    StringComparer.OrdinalIgnoreCase);
+
                 for (var colorIndex = 0; colorIndex < colorColumns.Count; colorIndex++)
                 {
+                    var colorName = NormalizeVariantName(colorColumns[colorIndex].Name);
+                    if (string.IsNullOrWhiteSpace(colorName) ||
+                        colorName.Equals(StandardVariantName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     var targetPieces = ParseIntegerCell(
                         sheet.Cell(row, colorColumns[colorIndex].ColumnIndex));
                     var issues = ReadPieceIssues(
@@ -738,12 +778,34 @@ public class ImportController : Controller
                         year,
                         month);
 
-                    // ทุกสีใน snapshot ต้องถูกประมวลผล รวมถึงค่า 0 เพื่อใช้ลดของเดิมเป็น 0
+                    if (colorQtyByName.TryGetValue(colorName, out var existing))
+                    {
+                        existing.Issues.AddRange(issues);
+                        colorQtyByName[colorName] = (existing.Pieces + targetPieces, existing.Issues);
+                    }
+                    else
+                    {
+                        colorQtyByName[colorName] = (targetPieces, issues.ToList());
+                    }
+                }
+
+                foreach (var (colorName, data) in colorQtyByName)
+                {
+                    // รวมบิลซ้ำวันเดียวกันหลัง merge สีที่ยกเลิก (เช่น ชมพูอ่อน → ชมเข้ม)
+                    var mergedIssues = data.Issues
+                        .GroupBy(i => i.Date)
+                        .Select(g => new ParsedIssue(
+                            g.Key,
+                            g.Sum(x => x.QtyPieces),
+                            g.Sum(x => x.QtyCases)))
+                        .OrderBy(i => i.Date)
+                        .ToList();
+
                     parsedVariants.Add(new ParsedVariant(
-                        NormalizeVariantName(colorColumns[colorIndex].Name),
-                        targetPieces,
+                        colorName,
+                        data.Pieces,
                         0,
-                        issues));
+                        mergedIssues));
                 }
 
                 var standardTargetPieces = ParseIntegerCell(
@@ -756,7 +818,7 @@ public class ImportController : Controller
                     year,
                     month);
                 if (standardTargetPieces > 0 || standardIssues.Count > 0 ||
-                    UsesStandardVariant(currentCategory))
+                    ProductCatalogRules.UsesStandardVariant(currentCategory, productName))
                 {
                     parsedVariants.Add(new ParsedVariant(
                         StandardVariantName,
@@ -877,18 +939,6 @@ public class ImportController : Controller
         }
 
         return packSize;
-    }
-
-    private static bool UsesCaseQuantity(string categoryName)
-    {
-        return CaseQuantityCategories.Contains(NormalizeCategoryName(categoryName));
-    }
-
-    private static bool UsesStandardVariant(string categoryName)
-    {
-        var normalized = NormalizeCategoryName(categoryName);
-        return UsesCaseQuantity(normalized) ||
-            normalized.StartsWith("อะไหล่", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeVariantName(string value)

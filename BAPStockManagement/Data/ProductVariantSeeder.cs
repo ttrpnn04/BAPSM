@@ -12,6 +12,7 @@ public static class ProductVariantSeeder
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("ProductVariantSeeder");
 
         await NormalizeVariantAliasesAsync(context, logger);
+        await MigrateCaseUnitProductsAsync(context, logger);
         await NormalizeProductUnitsAsync(context, logger);
 
         var products = await context.Products
@@ -32,18 +33,25 @@ public static class ProductVariantSeeder
         BAPStockContext context,
         ILogger? logger = null)
     {
-        var products = await context.Products.ToListAsync();
+        var products = await context.Products
+            .Include(p => p.Category)
+            .ToListAsync();
         var changed = 0;
 
         foreach (var product in products)
         {
-            var normalized = ProductUnits.Normalize(product.Unit);
-            if (string.Equals(product.Unit, normalized, StringComparison.Ordinal))
+            var targetUnit = ProductCatalogRules.UsesCaseQuantity(
+                    product.Category?.CategoryName,
+                    product.ProductName)
+                ? ProductUnits.Case
+                : ProductUnits.Normalize(product.Unit);
+
+            if (string.Equals(product.Unit, targetUnit, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            product.Unit = normalized;
+            product.Unit = targetUnit;
             changed++;
         }
 
@@ -51,6 +59,100 @@ public static class ProductVariantSeeder
         {
             await context.SaveChangesAsync();
             logger?.LogInformation("Normalized product units for {Count} products", changed);
+        }
+    }
+
+    /// <summary>
+    /// ย้ายสต็อกจากสีขาว/สีอื่น (ชิ้น) → มาตรฐาน (กระสอบ/ลัง/เส้น) สำหรับยางนอกและสินค้าคละสีที่กำหนด
+    /// </summary>
+    public static async Task MigrateCaseUnitProductsAsync(
+        BAPStockContext context,
+        ILogger? logger = null)
+    {
+        var products = await context.Products
+            .Include(p => p.Category)
+            .Include(p => p.ProductVariants)
+                .ThenInclude(v => v.StockBalance)
+            .Include(p => p.ProductVariants)
+                .ThenInclude(v => v.StockTransactions)
+            .ToListAsync();
+
+        var migrated = 0;
+
+        foreach (var product in products)
+        {
+            if (!ProductCatalogRules.UsesCaseQuantity(
+                    product.Category?.CategoryName,
+                    product.ProductName))
+            {
+                continue;
+            }
+
+            product.Unit = ProductUnits.Case;
+
+            var standard = product.ProductVariants
+                .FirstOrDefault(v => v.VariantName == ProductVariantDefaults.StandardVariantName);
+            if (standard == null)
+            {
+                standard = new ProductVariant
+                {
+                    ProductId = product.ProductId,
+                    VariantName = ProductVariantDefaults.StandardVariantName,
+                    SortOrder = product.ProductVariants.Any()
+                        ? product.ProductVariants.Max(v => v.SortOrder) + 1
+                        : 1,
+                    IsActive = true,
+                    StockBalance = new StockBalance
+                    {
+                        QtyPieces = 0,
+                        QtyCases = 0
+                    }
+                };
+                product.ProductVariants.Add(standard);
+                await context.SaveChangesAsync();
+            }
+            else
+            {
+                standard.IsActive = true;
+                standard.StockBalance ??= new StockBalance
+                {
+                    QtyPieces = 0,
+                    QtyCases = 0
+                };
+            }
+
+            foreach (var variant in product.ProductVariants.ToList())
+            {
+                foreach (var txn in variant.StockTransactions.ToList())
+                {
+                    if (txn.QtyPieces > 0)
+                    {
+                        txn.QtyCases += txn.QtyPieces;
+                        txn.QtyPieces = 0;
+                    }
+
+                    if (variant.VariantId != standard.VariantId)
+                    {
+                        txn.Variant = standard;
+                        txn.VariantId = standard.VariantId;
+                    }
+                }
+
+                if (variant.VariantId != standard.VariantId)
+                {
+                    variant.IsActive = false;
+                }
+            }
+
+            migrated++;
+        }
+
+        if (migrated > 0)
+        {
+            await context.SaveChangesAsync();
+            logger?.LogInformation(
+                "Migrate case-unit products: {Count} products set to มาตรฐาน / กระสอบ/ลัง/เส้น",
+                migrated);
         }
     }
 
@@ -128,7 +230,9 @@ public static class ProductVariantSeeder
 
     public static Task EnsureDefaultColorsAsync(Product product, ILogger? logger = null)
     {
-        if (UsesStandardVariant(product.Category?.CategoryName))
+        if (ProductCatalogRules.UsesStandardVariant(
+                product.Category?.CategoryName,
+                product.ProductName))
         {
             foreach (var colorVariant in product.ProductVariants
                 .Where(v => v.IsActive &&
@@ -229,13 +333,5 @@ public static class ProductVariantSeeder
         }
 
         return Task.CompletedTask;
-    }
-
-    private static bool UsesStandardVariant(string? categoryName)
-    {
-        var normalized = categoryName?.Trim() ?? string.Empty;
-        return normalized.Equals("ยางในจักรยาน-COLUN", StringComparison.OrdinalIgnoreCase) ||
-            normalized.Equals("ยางในมอเตอร์ไซค์ BLUE", StringComparison.OrdinalIgnoreCase) ||
-            normalized.StartsWith("อะไหล่", StringComparison.OrdinalIgnoreCase);
     }
 }
