@@ -22,11 +22,11 @@ public class CreateTransactionViewModel
     public DateOnly TxnDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
 
     [Range(0, int.MaxValue, ErrorMessage = "จำนวนต้องไม่ติดลบ")]
-    [Display(Name = "จำนวน (ชิ้น)")]
+    [Display(Name = "จำนวน (ชิ้น/กล่อง)")]
     public int QtyPieces { get; set; }
 
     [Range(0, int.MaxValue, ErrorMessage = "จำนวนต้องไม่ติดลบ")]
-    [Display(Name = "จำนวน (ลัง)")]
+    [Display(Name = "จำนวน (กระสอบ/ลัง)")]
     public int QtyCases { get; set; }
 
     [MaxLength(50)]

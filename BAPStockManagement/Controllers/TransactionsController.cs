@@ -29,8 +29,27 @@ public class TransactionsController : Controller
         if (!allowedPageSizes.Contains(pageSize)) pageSize = 25;
         if (page < 1) page = 1;
 
-        var from = fromDate ?? DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
-        var to = toDate ?? DateOnly.FromDateTime(DateTime.Today);
+        // ไม่ระบุวัน = ย้อนหลัง 30 วัน, ระบุแค่วันใดวันหนึ่ง = กรองเฉพาะวันนั้น
+        DateOnly from;
+        DateOnly to;
+        if (fromDate.HasValue && toDate.HasValue)
+        {
+            from = fromDate.Value;
+            to = toDate.Value;
+        }
+        else if (fromDate.HasValue)
+        {
+            from = to = fromDate.Value;
+        }
+        else if (toDate.HasValue)
+        {
+            from = to = toDate.Value;
+        }
+        else
+        {
+            from = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
+            to = DateOnly.FromDateTime(DateTime.Today);
+        }
 
         if (from > to)
         {
@@ -124,8 +143,8 @@ public class TransactionsController : Controller
 
         return View(new TransactionIndexViewModel
         {
-            FromDate = from,
-            ToDate = to,
+            FromDate = fromDate,
+            ToDate = toDate,
             TransactionTypeId = transactionTypeId,
             Search = search,
             TransactionTypes = types,
@@ -467,7 +486,7 @@ public class TransactionsController : Controller
         if (name.Contains("ชมพู") || name.Contains("ชม")) return XLColor.FromHtml("#FF99FF");
         if (name.Contains("เหลือง") || name.Contains("ทอง") || name.Contains("ครีม")) return XLColor.FromHtml("#FFFF00");
         if (name.Contains("ม่วง")) return XLColor.FromHtml("#E4C1E0");
-        if (name.Contains("น้ำตาล")) return XLColor.FromHtml("#FFC000");
+        if (name.Contains("น้ำตาล") || name.Contains("ตาล")) return XLColor.FromHtml("#FFC000");
         if (name.Contains("เทา")) return XLColor.FromHtml("#D9D9D9");
         if (name.Contains("ขาว")) return XLColor.White;
         return XLColor.FromHtml("#F2F2F2");
@@ -589,7 +608,7 @@ public class TransactionsController : Controller
 
         if (submittedLines.Count == 0)
         {
-            ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้นหรือลังอย่างน้อย 1 รายการ");
+            ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้น/กล่องหรือกระสอบ/ลังอย่างน้อย 1 รายการ");
         }
 
         if (!ModelState.IsValid)
@@ -674,7 +693,7 @@ public class TransactionsController : Controller
 
                     if (requestedPieces > currentPieces || requestedCases > currentCases)
                     {
-                        var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น, {currentCases:N0} ลัง)";
+                        var msg = $"สต็อกไม่เพียงพอ: {variant.VariantName} (คงเหลือ {currentPieces:N0} ชิ้น/กล่อง, {currentCases:N0} กระสอบ/ลัง)";
                         await dbTx.RollbackAsync();
                         if (isAjax) return BadRequest(new { message = msg });
                         ModelState.AddModelError(string.Empty, msg);
@@ -721,9 +740,11 @@ public class TransactionsController : Controller
                 v.ProductId == productId &&
                 v.IsActive &&
                 v.Product.IsActive &&
-                v.Product.Category.IsActive &&
-                v.VariantName != ProductVariantDefaults.StandardVariantName)
-            .OrderBy(v => v.SortOrder)
+                v.Product.Category.IsActive)
+            .OrderBy(v => v.VariantName == ProductVariantDefaults.StandardVariantName ? 0 : 1)
+            .ThenByDescending(v => (v.StockBalance != null ? v.StockBalance.QtyPieces : 0) +
+                                   (v.StockBalance != null ? v.StockBalance.QtyCases : 0))
+            .ThenBy(v => v.SortOrder)
             .Select(v => (int?)v.VariantId)
             .FirstOrDefaultAsync();
         if (existingVariant.HasValue)
@@ -745,7 +766,7 @@ public class TransactionsController : Controller
         await _context.SaveChangesAsync();
 
         return product.ProductVariants
-            .Where(v => v.IsActive && v.VariantName != ProductVariantDefaults.StandardVariantName)
+            .Where(v => v.IsActive)
             .OrderBy(v => v.SortOrder)
             .Select(v => (int?)v.VariantId)
             .FirstOrDefault();
@@ -791,6 +812,7 @@ public class TransactionsController : Controller
                 v.VariantId,
                 v.ProductId,
                 v.Product.Sku,
+                v.Product.Unit,
                 QtyPieces = v.StockBalance != null ? v.StockBalance.QtyPieces : 0,
                 QtyCases = v.StockBalance != null ? v.StockBalance.QtyCases : 0,
                 Label = v.VariantName

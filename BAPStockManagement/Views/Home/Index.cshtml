@@ -29,7 +29,7 @@
             <div>
                 <div class="stat-label">คงเหลือทั้งหมด</div>
                 <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
-                <div class="stat-sub">@Model.TotalCases.ToString("N0") ลัง</div>
+                <div class="stat-sub">@Model.TotalCases.ToString("N0") กระสอบ/ลัง</div>
             </div>
             <div class="stat-icon"><i class="bi bi-boxes"></i></div>
         </div>
@@ -40,7 +40,7 @@
             <div>
                 <div class="stat-label">ใกล้หมด</div>
                 <div class="stat-value">@Model.LowStockProductCount.ToString("N0")</div>
-                <div class="stat-sub">สินค้าเหลือไม่เกิน 10 ชิ้น</div>
+                <div class="stat-sub">สินค้าเหลือไม่เกิน 10 ชิ้น/กล่อง</div>
             </div>
             <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
         </div>
@@ -62,7 +62,7 @@
             <div>
                 <div class="stat-label">รับเข้าเดือนนี้</div>
                 <div class="stat-value">@Model.MonthInPieces.ToString("N0")</div>
-                <div class="stat-sub">ชิ้น</div>
+                <div class="stat-sub">ชิ้น/กล่อง</div>
             </div>
             <div class="stat-icon"><i class="bi bi-arrow-down-circle"></i></div>
         </div>
@@ -73,7 +73,7 @@
             <div>
                 <div class="stat-label">จ่ายออกเดือนนี้</div>
                 <div class="stat-value">@Model.MonthOutPieces.ToString("N0")</div>
-                <div class="stat-sub">ชิ้น</div>
+                <div class="stat-sub">ชิ้น/กล่อง</div>
             </div>
             <div class="stat-icon"><i class="bi bi-arrow-up-circle"></i></div>
         </div>
@@ -132,7 +132,7 @@
             <div class="chart-card__header">
                 <div>
                     <h2>รับเข้า / จ่ายออก เดือนนี้</h2>
-                    <p>เทียบจำนวนชิ้นรายวันในเดือนปัจจุบัน</p>
+                    <p>เทียบจำนวนชิ้น/กล่องรายวันในเดือนปัจจุบัน</p>
                 </div>
                 <div class="chart-legend">
                     <span><i class="legend-dot legend-dot--in"></i>รับเข้า</span>

@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1>ประวัติรายการสต็อก</h1>
-        <p class="subtitle">รายการรับเข้าและจ่ายออกย้อนหลัง</p>
+        <p class="subtitle">รายการรับเข้าและจ่ายออกย้อนหลัง · ไม่เลือกวันที่ = ย้อนหลัง 30 วัน</p>
     </div>
     @if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
     {
@@ -81,8 +81,8 @@ else
                         <th>SKU</th>
                         <th>ชื่อสินค้า</th>
                         <th>สี/รุ่น</th>
-                        <th class="text-end">ชิ้น</th>
-                        <th class="text-end">ลัง</th>
+                        <th class="text-end">ชิ้น/กล่อง</th>
+                        <th class="text-end">กระสอบ/ลัง</th>
                         <th>เลขที่อ้างอิง</th>
                         <th>ผู้บันทึก</th>
                     </tr>

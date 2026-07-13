@@ -6,7 +6,7 @@
 <div class="page-header">
     <div>
         <h1>นำเข้าข้อมูลจาก Excel</h1>
-        <p class="subtitle">ตั้งยอดสต็อกให้ตรงกับตัวเลขล่าสุดในไฟล์ Excel (ไม่บวกเพิ่มทับของเดิม)</p>
+        <p class="subtitle">นำเข้าประวัติบิลรายวัน และตั้งยอดให้ตรงกับสต็อกคอลัมน์สุดท้าย</p>
     </div>
 </div>
 
@@ -19,12 +19,7 @@
             <span asp-validation-for="ExcelFile" class="text-danger"></span>
         </div>
 
-        <div class="col-md-6">
-            <label asp-for="CategoryName" class="form-label">กำหนดหมวดหมู่ตายตัว (ไม่กรอก = แยกอัตโนมัติตามรหัส SKU)</label>
-            <input asp-for="CategoryName" class="form-control" placeholder="เว้นว่างเพื่อให้ระบบจัดหมวดตาม BLB/BL/BLC/BL-BR" />
-        </div>
-
-        <div class="col-md-6 d-flex align-items-end">
+        <div class="col-12">
             <div class="form-check">
                 <input asp-for="IncludeZeroStockProducts" class="form-check-input" />
                 <label asp-for="IncludeZeroStockProducts" class="form-check-label">
@@ -41,7 +36,10 @@
     </form>
 
     <div class="mt-3 small text-muted">
-        ระบบจะปรับยอดให้เท่ากับไฟล์ (เพิ่ม/ลดตามส่วนต่าง) โดยใช้ RefNo จาก hash ของไฟล์เพื่ออ้างอิงรอบนำเข้า
+        <div>ระบบอ่านหมวดหมู่จากหัวข้อในคอลัมน์ C และอ่านเดือน/ปีจากชื่อไฟล์แบบ MMYY เช่น 0769</div>
+        <div>คอลัมน์สต็อกขวาสุด = ยอดปัจจุบัน (ตั้งค่าแทนที่ ไม่บวกเพิ่ม)</div>
+        <div>ไฟล์ใหม่: นำเข้าประวัติบิล + ตั้งยอดล่าสุด / ไฟล์เดิมที่เคยนำเข้าแล้ว: ซิงก์ยอดล่าสุดอย่างเดียว ไม่ใส่บิลซ้ำ</div>
+        <div>สีใช้ชื่อตาม Excel 14 สี และยางใน COLUN/BLUE นับเป็นกระสอบ/ลัง</div>
     </div>
 </div>
 
@@ -53,6 +51,19 @@
         {
             <span class="ms-2">Ref: <code>@Model.ImportRef</code></span>
         }
+    </div>
+}
+
+@if (Model.Warnings.Count > 0)
+{
+    <div class="alert alert-warning mb-4">
+        <div class="fw-semibold mb-1">คำเตือนจากไฟล์</div>
+        <ul class="mb-0">
+            @foreach (var warning in Model.Warnings)
+            {
+                <li>@warning</li>
+            }
+        </ul>
     </div>
 }
 
@@ -80,17 +91,18 @@
         <div class="col-sm-6 col-lg-3">
             <div class="stat-card stat-info">
                 <div>
-                    <div class="stat-label">รายการรับเข้า</div>
-                    <div class="stat-value">@Model.ImportedTransactions</div>
+                    <div class="stat-label">รายการบิลออก</div>
+                    <div class="stat-value">@Model.ImportedIssueTransactions</div>
                 </div>
-                <div class="stat-icon"><i class="bi bi-arrow-down-circle"></i></div>
+                <div class="stat-icon"><i class="bi bi-arrow-up-circle"></i></div>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3">
             <div class="stat-card stat-warning">
                 <div>
-                    <div class="stat-label">ยอดชิ้นรวม</div>
-                    <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
+                    <div class="stat-label">ยอดล่าสุด</div>
+                    <div class="stat-value">@Model.TotalPieces.ToString("N0") ชิ้น/กล่อง</div>
+                    <div class="small">@Model.TotalCases.ToString("N0") กระสอบ/ลัง</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-calculator"></i></div>
             </div>
@@ -106,12 +118,26 @@
                         <td>@string.Join(", ", Model.CategoryNames)</td>
                     </tr>
                     <tr>
+                        <th>ช่วงบิลที่นำเข้า</th>
+                        <td>
+                            บิล1–บิล@Model.BillDays
+                            @if (Model.SnapshotDate.HasValue)
+                            {
+                                <span>(ถึงวันที่ @Model.SnapshotDate.Value.ToString("dd/MM/yyyy"))</span>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
                         <th>สินค้าใหม่ที่สร้าง</th>
                         <td>@Model.CreatedProducts</td>
                     </tr>
                     <tr>
                         <th>สี/รุ่นใหม่ที่สร้าง</th>
                         <td>@Model.CreatedVariants</td>
+                    </tr>
+                    <tr>
+                        <th>รายการปรับยอดเปิด</th>
+                        <td>@Model.AdjustmentTransactions</td>
                     </tr>
                     <tr>
                         <th>สินค้าไม่มีสต็อกที่ถูกข้าม transaction</th>

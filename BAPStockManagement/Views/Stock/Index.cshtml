@@ -46,7 +46,7 @@
                 <div>
                     <div class="stat-label">สต็อกรวม</div>
                     <div class="stat-value">@Model.TotalPieces.ToString("N0")</div>
-                    <div class="stat-sub">@Model.TotalCases.ToString("N0") ลัง</div>
+                    <div class="stat-sub">@Model.TotalCases.ToString("N0") กระสอบ/ลัง</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-box-seam"></i></div>
             </div>
@@ -60,7 +60,7 @@
                 <div>
                     <div class="stat-label">สินค้าใกล้หมด</div>
                     <div class="stat-value">@Model.LowStockCount</div>
-                    <div class="stat-sub">เหลือ ≤ 10 ชิ้น</div>
+                    <div class="stat-sub">เหลือ ≤ 10 ชิ้น/กล่อง</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
             </div>
@@ -163,8 +163,8 @@ else
                         <th>SKU</th>
                         <th>ชื่อสินค้า</th>
                         <th>สี/รุ่น</th>
-                        <th class="text-end">ชิ้น</th>
-                        <th class="text-end">ลัง</th>
+                        <th class="text-end">ชิ้น/กล่อง</th>
+                        <th class="text-end">กระสอบ/ลัง</th>
                         <th>หน่วย</th>
                         <th>อัปเดตล่าสุด</th>
                     </tr>
@@ -186,7 +186,7 @@ else
                                             var colorEmpty = color.QtyPieces == 0;
                                             <span class="color-swatch @(colorEmpty ? "color-swatch--empty" : "")"
                                                   data-vname="@color.VariantName"
-                                                  title="@color.VariantName — @(colorEmpty ? "หมด" : color.QtyPieces.ToString("N0") + " ชิ้น")">
+                                                  title="@color.VariantName — @(colorEmpty ? "หมด" : color.QtyPieces.ToString("N0") + " ชิ้น/กล่อง")">
                                                 <span class="color-swatch__fill">@(colorEmpty ? "" : color.QtyPieces.ToString("N0"))</span>
                                                 <span class="color-swatch__label">@color.VariantName</span>
                                             </span>
@@ -356,20 +356,24 @@ else
         const variantHidden = document.getElementById('variantHidden');
         const variantDataEl = document.getElementById('variantData');
         const form          = document.getElementById('createTxnForm');
+        const qtyValueInput  = form?.querySelector('#QtyValue');
         const qtyPiecesInput = form?.querySelector('[name="QtyPieces"]');
         const qtyCasesInput  = form?.querySelector('[name="QtyCases"]');
+        const qtyFieldLabel  = document.getElementById('qtyFieldLabel');
+        const qtyFieldHint   = document.getElementById('qtyFieldHint');
         const addLineBtn     = document.getElementById('addTxnLineBtn');
         const linesWrap      = document.getElementById('txnLinesWrap');
         const linesBody      = document.getElementById('txnLinesBody');
         const linesInputs    = document.getElementById('txnLinesInputs');
         if (!productSelect || !productSearch || !variantChips || !variantHidden || !variantDataEl ||
-            !form || !qtyPiecesInput || !qtyCasesInput || !addLineBtn || !linesWrap || !linesBody || !linesInputs) return;
+            !form || !qtyValueInput || !qtyPiecesInput || !qtyCasesInput || !addLineBtn || !linesWrap || !linesBody || !linesInputs) return;
 
         const allVariants = Array.from(variantDataEl.querySelectorAll('[data-variant-id]'))
             .map(el => ({
                 variantId: el.dataset.variantId,
                 productId: el.dataset.productId,
                 sku: el.dataset.sku,
+                unit: el.dataset.unit || '',
                 qtyPieces: Number.parseInt(el.dataset.qtyPieces || '0', 10),
                 qtyCases: Number.parseInt(el.dataset.qtyCases || '0', 10),
                 label: el.dataset.label
@@ -377,6 +381,7 @@ else
 
         const initialVariantId = variantHidden.value;
         const txnLines = [];
+        const variantFieldLabel = document.getElementById('variantFieldLabel');
 
         const productOptions = Array.from(productSelect.options).map(option => ({
             option,
@@ -396,6 +401,14 @@ else
             return Number.parseInt(checkedType?.dataset.direction || '0', 10);
         }
 
+        function stockLabel(v) {
+            if (v.qtyPieces > 0 && v.qtyCases > 0) {
+                return `${v.qtyPieces.toLocaleString()} ชิ้น/กล่อง / ${v.qtyCases.toLocaleString()} กระสอบ/ลัง`;
+            }
+            if (v.qtyCases > 0) return `${v.qtyCases.toLocaleString()} กระสอบ/ลัง`;
+            return `${v.qtyPieces.toLocaleString()} ชิ้น/กล่อง`;
+        }
+
         function buildChips(productId) {
             const direction = currentDirection();
             const isSale = direction < 0;
@@ -405,11 +418,20 @@ else
             );
             variantChips.innerHTML = '';
             variantHidden.value = '';
+
+            const caseOnly = filtered.length > 0 &&
+                filtered.every(v => isCaseUnit(v.unit));
+            if (variantFieldLabel) {
+                variantFieldLabel.innerHTML = caseOnly
+                    ? 'หน่วย <span class="text-danger">*</span>'
+                    : 'สี/รุ่น <span class="text-danger">*</span>';
+            }
+
             if (!filtered.length) {
                 variantChips.innerHTML = productId
                     ? (isSale
-                        ? '<span class="text-muted small fst-italic">ไม่มีสี/รุ่นที่มีสต็อก</span>'
-                        : '<span class="text-muted small fst-italic">ไม่พบสี/รุ่น</span>')
+                        ? '<span class="text-muted small fst-italic">ไม่มีสต็อกให้เบิกออก</span>'
+                        : '<span class="text-muted small fst-italic">ไม่พบหน่วยสินค้า</span>')
                     : '<span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>';
                 return;
             }
@@ -422,25 +444,21 @@ else
                 btn.style.setProperty('--chip-bg',   col.bg);
                 btn.style.setProperty('--chip-text', col.text);
                 btn.style.setProperty('--chip-dot',  col.dot);
-                if (v.variantId === initialVariantId) {
-                    btn.classList.add('is-selected');
-                    variantHidden.value = v.variantId;
-                }
                 const skuEl = document.createElement('code');
                 skuEl.className = 'variant-chip-btn__sku';
                 skuEl.textContent = v.sku;
 
                 const swatch = document.createElement('span');
                 swatch.className = 'color-swatch color-swatch--variant-choice';
-                swatch.title = `${v.label} — คงเหลือ ${v.qtyPieces.toLocaleString()} ชิ้น, ${v.qtyCases.toLocaleString()} ลัง`;
+                swatch.title = `${v.label} — คงเหลือ ${stockLabel(v)}`;
 
                 const fill = document.createElement('span');
                 fill.className = 'color-swatch__fill';
-                fill.textContent = isSale ? v.qtyPieces.toLocaleString() : '';
+                fill.textContent = isSale ? stockLabel(v) : '';
 
                 const label = document.createElement('span');
                 label.className = 'color-swatch__label';
-                label.textContent = v.label;
+                label.textContent = v.label === 'มาตรฐาน' ? (caseOnly ? 'กระสอบ/ลัง' : 'มาตรฐาน') : v.label;
 
                 swatch.appendChild(fill);
                 swatch.appendChild(label);
@@ -449,18 +467,78 @@ else
                 btn.addEventListener('click', () => selectVariant(btn, v.variantId));
                 variantChips.appendChild(btn);
             });
+
+            const preferred = filtered.find(v => v.variantId === initialVariantId) ||
+                (filtered.length === 1 ? filtered[0] : null) ||
+                filtered.find(v => v.label === 'มาตรฐาน') ||
+                filtered[0];
+            if (preferred) {
+                const btn = variantChips.querySelector(`[data-variant-id="${preferred.variantId}"]`);
+                if (btn) selectVariant(btn, preferred.variantId);
+            }
+        }
+
+        function isCaseUnit(unit) {
+            const value = unit || '';
+            return value.includes('ลัง') || value.includes('กระสอบ');
+        }
+
+        function isCaseVariant(variant) {
+            return !!variant && isCaseUnit(variant.unit);
+        }
+
+        function updateQtyFieldForVariant(variant) {
+            const caseItem = isCaseVariant(variant);
+            if (qtyFieldLabel) {
+                qtyFieldLabel.textContent = caseItem ? 'จำนวน (กระสอบ/ลัง)' : 'จำนวน (ชิ้น/กล่อง)';
+            }
+            if (qtyFieldHint) {
+                qtyFieldHint.textContent = caseItem
+                    ? 'สินค้านี้บันทึกเป็นกระสอบ/ลัง'
+                    : 'สินค้านี้บันทึกเป็นชิ้น/กล่อง';
+            }
+            qtyValueInput.placeholder = caseItem ? 'กรอกจำนวนกระสอบ/ลัง' : 'กรอกจำนวนชิ้น/กล่อง';
         }
 
         function selectVariant(btn, id) {
             variantChips.querySelectorAll('.variant-chip-btn').forEach(b => b.classList.remove('is-selected'));
             btn.classList.add('is-selected');
             variantHidden.value = id;
+            updateQtyFieldForVariant(allVariants.find(v => v.variantId === id));
+        }
+
+        function sanitizeQtyInput(input) {
+            const sanitized = input.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            if (input.value !== sanitized) input.value = sanitized;
+        }
+
+        function bindQtyInput(input) {
+            input.addEventListener('input', () => sanitizeQtyInput(input));
+            input.addEventListener('focus', () => {
+                if (input.value === '0') input.value = '';
+            });
         }
 
         function readQty(input) {
             const value = Number.parseInt(input.value, 10);
             return Number.isFinite(value) && value > 0 ? value : 0;
         }
+
+        function splitQty(variant, qty) {
+            if (isCaseVariant(variant)) {
+                return { qtyPieces: 0, qtyCases: qty };
+            }
+            return { qtyPieces: qty, qtyCases: 0 };
+        }
+
+        function syncHiddenQtyFields(variant) {
+            const qty = readQty(qtyValueInput);
+            const split = splitQty(variant, qty);
+            qtyPiecesInput.value = String(split.qtyPieces);
+            qtyCasesInput.value = String(split.qtyCases);
+        }
+
+        bindQtyInput(qtyValueInput);
 
         function renderTxnLines() {
             linesWrap.classList.toggle('d-none', txnLines.length === 0);
@@ -483,21 +561,21 @@ else
                 swatch.title = line.label;
                 const fill = document.createElement('span');
                 fill.className = 'color-swatch__fill';
-                fill.textContent = line.qtyPieces ? line.qtyPieces.toLocaleString() : '';
+                fill.textContent = line.qtyPieces
+                    ? line.qtyPieces.toLocaleString()
+                    : (line.qtyCases ? line.qtyCases.toLocaleString() : '');
                 const label = document.createElement('span');
                 label.className = 'color-swatch__label';
-                label.textContent = line.label;
+                label.textContent = line.label === 'มาตรฐาน' ? 'กระสอบ/ลัง' : line.label;
                 swatch.appendChild(fill);
                 swatch.appendChild(label);
                 colorTd.appendChild(swatch);
 
-                const piecesTd = document.createElement('td');
-                piecesTd.className = 'text-end';
-                piecesTd.textContent = line.qtyPieces.toLocaleString();
-
-                const casesTd = document.createElement('td');
-                casesTd.className = 'text-end';
-                casesTd.textContent = line.qtyCases.toLocaleString();
+                const qtyTd = document.createElement('td');
+                qtyTd.className = 'text-end';
+                qtyTd.textContent = line.qtyCases > 0
+                    ? `${line.qtyCases.toLocaleString()} กระสอบ/ลัง`
+                    : `${line.qtyPieces.toLocaleString()} ชิ้น/กล่อง`;
 
                 const actionTd = document.createElement('td');
                 actionTd.className = 'text-end';
@@ -510,8 +588,7 @@ else
 
                 tr.appendChild(skuTd);
                 tr.appendChild(colorTd);
-                tr.appendChild(piecesTd);
-                tr.appendChild(casesTd);
+                tr.appendChild(qtyTd);
                 tr.appendChild(actionTd);
                 linesBody.appendChild(tr);
 
@@ -535,19 +612,22 @@ else
 
         function addCurrentLine(showAlert = true) {
             const variantId = variantHidden.value;
-            const qtyPieces = readQty(qtyPiecesInput);
-            const qtyCases = readQty(qtyCasesInput);
             const variant = allVariants.find(v => v.variantId === variantId);
+            const qty = readQty(qtyValueInput);
 
             if (!variantId || !variant) {
-                if (showAlert) alert('กรุณาเลือกสี/รุ่นก่อนเพิ่มรายการ');
+                if (showAlert) alert('กรุณาเลือกสินค้า/หน่วยก่อนเพิ่มรายการ');
                 return false;
             }
 
-            if (qtyPieces === 0 && qtyCases === 0) {
-                if (showAlert) alert('กรุณาระบุจำนวนชิ้นหรือลังอย่างน้อย 1 รายการ');
+            if (qty === 0) {
+                if (showAlert) alert(isCaseVariant(variant)
+                    ? 'กรุณาระบุจำนวนกระสอบ/ลังอย่างน้อย 1'
+                    : 'กรุณาระบุจำนวนชิ้น/กล่องอย่างน้อย 1');
                 return false;
             }
+
+            const { qtyPieces, qtyCases } = splitQty(variant, qty);
 
             const existing = txnLines.find(line => line.variantId === variantId);
             if (existing) {
@@ -563,8 +643,9 @@ else
                 });
             }
 
-            qtyPiecesInput.value = 0;
-            qtyCasesInput.value = 0;
+            qtyValueInput.value = '';
+            qtyPiecesInput.value = '0';
+            qtyCasesInput.value = '0';
             renderTxnLines();
             return true;
         }
@@ -599,7 +680,9 @@ else
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (txnLines.length === 0) {
-                const hasDraftQty = readQty(qtyPiecesInput) > 0 || readQty(qtyCasesInput) > 0;
+                const variant = allVariants.find(v => v.variantId === variantHidden.value);
+                syncHiddenQtyFields(variant);
+                const hasDraftQty = readQty(qtyValueInput) > 0;
                 if (hasDraftQty) addCurrentLine(false);
             }
             alertDiv.classList.add('d-none');
@@ -718,7 +801,7 @@ else
         const swatch = document.createElement('span');
         swatch.className = `color-swatch color-swatch--table${empty ? ' color-swatch--empty' : ''}`;
         swatch.style.setProperty('--swatch-color', col.dot);
-        swatch.title = `${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น'}`;
+        swatch.title = `${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น/กล่อง'}`;
 
         const fill = document.createElement('span');
         fill.className = 'color-swatch__fill';
@@ -736,7 +819,7 @@ else
     async function openAlertModal(alertType) {
         const isOut = alertType === 'out';
         const icon  = isOut ? 'bi-x-circle text-danger' : 'bi-exclamation-triangle text-warning';
-        const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น)';
+        const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น/กล่อง)';
 
         const titleEl = document.getElementById('alertModalTitle');
         titleEl.textContent = '';
@@ -784,7 +867,7 @@ else
             }
             const piecesHead = document.createElement('th');
             piecesHead.className = 'text-end text-muted small fw-normal';
-            piecesHead.textContent = 'ชิ้นรวม';
+            piecesHead.textContent = 'ชิ้น/กล่องรวม';
             headRow.appendChild(piecesHead);
             thead.appendChild(headRow);
 

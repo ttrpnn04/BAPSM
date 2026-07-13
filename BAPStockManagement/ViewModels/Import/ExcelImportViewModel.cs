@@ -8,8 +8,6 @@ public class ExcelImportViewModel
 
     public bool IncludeZeroStockProducts { get; set; } = true;
 
-    public string? CategoryName { get; set; }
-
     public bool HasResult { get; set; }
 
     public bool IsSuccess { get; set; }
@@ -28,11 +26,23 @@ public class ExcelImportViewModel
 
     public int ImportedTransactions { get; set; }
 
+    public int ImportedIssueTransactions { get; set; }
+
+    public int AdjustmentTransactions { get; set; }
+
     public int TotalPieces { get; set; }
 
+    public int TotalCases { get; set; }
+
     public int SkippedNoStockProducts { get; set; }
+
+    public int BillDays { get; set; }
+
+    public DateOnly? SnapshotDate { get; set; }
 
     public IReadOnlyList<string> ColorHeaders { get; set; } = [];
 
     public IReadOnlyList<string> CategoryNames { get; set; } = [];
+
+    public IReadOnlyList<string> Warnings { get; set; } = [];
 }

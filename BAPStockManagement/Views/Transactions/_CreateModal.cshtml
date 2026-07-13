@@ -16,7 +16,7 @@
     </div>
 
     <div class="mb-3">
-        <label class="form-label fw-medium">สี/รุ่น <span class="text-danger">*</span></label>
+        <label class="form-label fw-medium" id="variantFieldLabel">สี/รุ่น <span class="text-danger">*</span></label>
         <input type="hidden" name="VariantId" id="variantHidden" value="@Model.VariantId" />
         <div id="variantChips" class="variant-chip-grid">
             <span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>
@@ -27,6 +27,7 @@
                 <span data-variant-id="@v.VariantId"
                       data-product-id="@v.ProductId"
                       data-sku="@v.Sku"
+                      data-unit="@v.Unit"
                       data-qty-pieces="@v.QtyPieces"
                       data-qty-cases="@v.QtyCases"
                       data-label="@v.Label"></span>
@@ -65,22 +66,21 @@
                placeholder="วัน/เดือน/ปี" inputmode="numeric" />
     </div>
 
-    <div class="row g-3 mb-3 align-items-end">
-        <div class="col-6">
-            <label class="form-label fw-medium">จำนวน (ชิ้น)</label>
-            <input type="number" name="QtyPieces" class="form-control" value="@Model.QtyPieces" min="0" />
-        </div>
-        <div class="col-6">
-            <label class="form-label fw-medium">จำนวน (ลัง)</label>
-            <input type="number" name="QtyCases" class="form-control" value="@Model.QtyCases" min="0" />
-        </div>
+    <div class="mb-3">
+        <label class="form-label fw-medium" id="qtyFieldLabel">จำนวน</label>
+        <input type="text" id="QtyValue" class="form-control qty-input" inputmode="numeric"
+               autocomplete="off" placeholder="กรอกจำนวน"
+               value="@(Model.QtyPieces > 0 ? Model.QtyPieces.ToString() : (Model.QtyCases > 0 ? Model.QtyCases.ToString() : null))" />
+        <input type="hidden" name="QtyPieces" value="@(Model.QtyPieces > 0 ? Model.QtyPieces.ToString() : "0")" />
+        <input type="hidden" name="QtyCases" value="@(Model.QtyCases > 0 ? Model.QtyCases.ToString() : "0")" />
+        <div class="form-text" id="qtyFieldHint">ระบบจะแยกเป็นชิ้น/กล่อง หรือ กระสอบ/ลัง ให้อัตโนมัติตามสินค้าที่เลือก</div>
     </div>
 
     <div class="mb-3">
         <button type="button" class="btn btn-outline-primary btn-sm" id="addTxnLineBtn">
             <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
         </button>
-        <div class="form-text">เพิ่มได้หลายสี/รุ่น แล้วกดบันทึกครั้งเดียว</div>
+        <div class="form-text">เพิ่มได้หลายรายการ แล้วกดบันทึกครั้งเดียว</div>
     </div>
 
     <div class="table-responsive mb-3 d-none" id="txnLinesWrap">
@@ -88,9 +88,8 @@
             <thead>
                 <tr>
                     <th>รหัสสินค้า</th>
-                    <th>สี/รุ่น</th>
-                    <th class="text-end">ชิ้น</th>
-                    <th class="text-end">ลัง</th>
+                    <th>สี/หน่วย</th>
+                    <th class="text-end">จำนวน</th>
                     <th class="text-end"></th>
                 </tr>
             </thead>

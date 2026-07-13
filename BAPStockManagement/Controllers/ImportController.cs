@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using BAPStockManagement.Constants;
+using BAPStockManagement.Data;
 using BAPStockManagement.Models;
 using BAPStockManagement.ViewModels.Import;
 using ClosedXML.Excel;
@@ -16,14 +18,14 @@ namespace BAPStockManagement.Controllers;
 public class ImportController : Controller
 {
     private const long MaxExcelFileBytes = 10 * 1024 * 1024; // 10 MB
+    private const string StandardVariantName = ProductVariantDefaults.StandardVariantName;
 
-    private static readonly string[] StockStopTokens =
-    [
-        "ลัง",
-        "คงเหลือ",
-        "รวม",
-        "ยอดรวม"
-    ];
+    private static readonly HashSet<string> CaseQuantityCategories =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "ยางในจักรยาน-COLUN",
+            "ยางในมอเตอร์ไซค์ BLUE"
+        };
 
     private readonly BAPStockContext _context;
     private readonly UserManager<IdentityUser> _userManager;
@@ -44,7 +46,6 @@ public class ImportController : Controller
     {
         return View(new ExcelImportViewModel
         {
-            CategoryName = string.Empty,
             IncludeZeroStockProducts = true
         });
     }
@@ -86,7 +87,7 @@ public class ImportController : Controller
             var fileBytes = memory.ToArray();
             var importRef = BuildImportRef(fileBytes);
 
-            var parsed = ParseWorkbook(fileBytes, model.IncludeZeroStockProducts, model.CategoryName);
+            var parsed = ParseWorkbook(fileBytes, safeFileName);
             if (parsed.Rows.Count == 0)
             {
                 model.HasResult = true;
@@ -94,6 +95,18 @@ public class ImportController : Controller
                 model.ResultMessage = "ไม่พบข้อมูลสินค้าที่พร้อมนำเข้า";
                 return View(model);
             }
+
+            // รวมสีชื่อซ้ำก่อนนำเข้า เพื่อไม่ให้เหลือ 17 สี
+            await ProductVariantSeeder.NormalizeVariantAliasesAsync(_context, _logger);
+
+            // ไฟล์นี้เคยนำเข้าบิลแล้วหรือยัง — ถ้าเคยแล้วจะ sync ยอดล่าสุดอย่างเดียว ไม่ใส่บิลซ้ำ
+            var alreadyImportedThisFile = await _context.StockTransactions
+                .AnyAsync(t => t.RefNo != null &&
+                    (t.RefNo == importRef ||
+                     t.RefNo.StartsWith(importRef + "-BASE") ||
+                     t.RefNo.StartsWith(importRef + "-B") ||
+                     t.RefNo.StartsWith(importRef + "-SET")));
+            var importBillHistory = !alreadyImportedThisFile;
 
             var receiveTypeId = await GetOrCreateReceiveTypeAsync();
             var issueTypeId = await GetOrCreateIssueTypeAsync();
@@ -104,21 +117,45 @@ public class ImportController : Controller
             var importedProducts = 0;
             var createdVariants = 0;
             var importedTransactions = 0;
+            var importedIssueTransactions = 0;
+            var adjustmentTransactions = 0;
             var totalPieces = 0;
+            var totalCases = 0;
             var skippedNoStock = 0;
+            var importedVariants = new List<ImportedVariant>();
+            var syncStamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
                 foreach (var row in parsed.Rows)
                 {
+                    var rowHasQuantity = row.Variants.Any(v =>
+                        v.QtyPieces > 0 || v.QtyCases > 0 || v.Issues.Count > 0);
+                    if (!model.IncludeZeroStockProducts && !rowHasQuantity)
+                    {
+                        var existingProduct = await _context.Products.AnyAsync(p =>
+                            p.Sku == row.Sku && p.ProductName == row.ProductName);
+                        if (!existingProduct)
+                        {
+                            skippedNoStock++;
+                            continue;
+                        }
+                    }
+
                     if (!categoryCache.TryGetValue(row.CategoryName, out var categoryId))
                     {
-                        categoryId = await GetOrCreateCategoryAsync(row.CategoryName);
+                        categoryId = await GetOrCreateCategoryAsync(
+                            row.CategoryName,
+                            UsesStandardVariant(row.CategoryName) ? "หน่วย" : "สี");
                         categoryCache[row.CategoryName] = categoryId;
                     }
 
-                    var (product, createdProduct) = await GetOrCreateProductAsync(categoryId, row.Sku, row.ProductName);
+                    var (product, createdProduct) = await GetOrCreateProductAsync(
+                        categoryId,
+                        row.Sku,
+                        row.ProductName,
+                        row.Unit);
                     importedProducts++;
                     if (createdProduct)
                     {
@@ -126,14 +163,10 @@ public class ImportController : Controller
                     }
 
                     var rowTargetPieces = row.Variants.Sum(v => v.QtyPieces);
+                    var rowTargetCases = row.Variants.Sum(v => v.QtyCases);
                     totalPieces += rowTargetPieces;
-                    if (rowTargetPieces == 0 && row.Variants.Count == 0)
-                    {
-                        skippedNoStock++;
-                        continue;
-                    }
+                    totalCases += rowTargetCases;
 
-                    var rowHadAdjustment = false;
                     foreach (var variant in row.Variants)
                     {
                         var (variantEntity, createdVariant) = await GetOrCreateVariantAsync(product, variant.Name);
@@ -142,38 +175,73 @@ public class ImportController : Controller
                             createdVariants++;
                         }
 
+                        importedVariants.Add(new ImportedVariant(variantEntity, variant));
+
                         var currentPieces = variantEntity.StockBalance?.QtyPieces ?? 0;
-                        var targetPieces = variant.QtyPieces;
-                        var delta = targetPieces - currentPieces;
-                        if (delta == 0)
+                        var currentCases = variantEntity.StockBalance?.QtyCases ?? 0;
+
+                        if (importBillHistory)
                         {
-                            continue;
+                            // รอบแรกของไฟล์นี้: ตั้งยอดเปิดแล้วหักบิล ให้เหลือตรงคอลัมน์สุดท้าย
+                            var requiredOpeningPieces = variant.QtyPieces + variant.Issues.Sum(i => i.QtyPieces);
+                            var requiredOpeningCases = variant.QtyCases + variant.Issues.Sum(i => i.QtyCases);
+
+                            adjustmentTransactions += AddAdjustmentTransactions(
+                                variantEntity.VariantId,
+                                requiredOpeningPieces - currentPieces,
+                                requiredOpeningCases - currentCases,
+                                receiveTypeId,
+                                issueTypeId,
+                                parsed.OpeningDate,
+                                $"{importRef}-BASE",
+                                $"Excel opening balance ({Truncate(safeFileName, 60)})",
+                                userId);
                         }
-
-                        rowHadAdjustment = true;
-                        _context.StockTransactions.Add(new StockTransaction
+                        else
                         {
-                            VariantId = variantEntity.VariantId,
-                            TransactionTypeId = delta > 0 ? receiveTypeId : issueTypeId,
-                            TxnDate = DateOnly.FromDateTime(DateTime.Today),
-                            QtyPieces = Math.Abs(delta),
-                            QtyCases = 0,
-                            RefNo = importRef,
-                            Note = $"Stock snapshot from Excel ({Truncate(safeFileName, 60)}): set {currentPieces} -> {targetPieces}",
-                            CreatedBy = userId
-                        });
-
-                        importedTransactions++;
-                    }
-
-                    if (!rowHadAdjustment && rowTargetPieces == 0)
-                    {
-                        skippedNoStock++;
+                            // นำเข้าซ้ำ: ตั้งยอดให้เท่าคอลัมน์สต็อกล่าสุดโดยตรง ไม่บวกเพิ่ม ไม่ใส่บิลซ้ำ
+                            adjustmentTransactions += AddAdjustmentTransactions(
+                                variantEntity.VariantId,
+                                variant.QtyPieces - currentPieces,
+                                variant.QtyCases - currentCases,
+                                receiveTypeId,
+                                issueTypeId,
+                                parsed.SnapshotDate,
+                                $"{importRef}-SET-{syncStamp}",
+                                $"Excel stock sync ({Truncate(safeFileName, 60)}): set to latest column",
+                                userId);
+                        }
                     }
                 }
 
                 await _context.SaveChangesAsync();
+
+                if (importBillHistory)
+                {
+                    foreach (var imported in importedVariants)
+                    {
+                        foreach (var issue in imported.Parsed.Issues)
+                        {
+                            _context.StockTransactions.Add(new StockTransaction
+                            {
+                                VariantId = imported.Entity.VariantId,
+                                TransactionTypeId = issueTypeId,
+                                TxnDate = issue.Date,
+                                QtyPieces = issue.QtyPieces,
+                                QtyCases = issue.QtyCases,
+                                RefNo = $"{importRef}-B{issue.Date.Day:00}",
+                                Note = $"Excel บิล{issue.Date.Day} ({Truncate(safeFileName, 60)})",
+                                CreatedBy = userId
+                            });
+                            importedIssueTransactions++;
+                        }
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
                 await tx.CommitAsync();
+                importedTransactions = adjustmentTransactions + importedIssueTransactions;
             }
             catch
             {
@@ -183,17 +251,30 @@ public class ImportController : Controller
 
             model.HasResult = true;
             model.IsSuccess = true;
-            model.ResultMessage = "นำเข้าข้อมูลสำเร็จ (ตั้งยอดสต็อกตามไฟล์ล่าสุด)";
+            model.ResultMessage = importBillHistory
+                ? "นำเข้าข้อมูลสำเร็จ (ตั้งยอดตามไฟล์ล่าสุด + ประวัติบิล)"
+                : "ซิงก์สต็อกสำเร็จ (ตั้งยอดให้ตรงคอลัมน์สุดท้ายของ Excel โดยไม่ใส่บิลซ้ำ)";
             model.ImportRef = importRef;
             model.ParsedRows = parsed.Rows.Count;
             model.ImportedProducts = importedProducts;
             model.CreatedProducts = createdProducts;
             model.CreatedVariants = createdVariants;
             model.ImportedTransactions = importedTransactions;
+            model.ImportedIssueTransactions = importedIssueTransactions;
+            model.AdjustmentTransactions = adjustmentTransactions;
             model.TotalPieces = totalPieces;
+            model.TotalCases = totalCases;
             model.SkippedNoStockProducts = skippedNoStock;
             model.ColorHeaders = parsed.ColorHeaders;
-            model.CategoryName = parsed.Rows.FirstOrDefault()?.CategoryName ?? model.CategoryName;
+            model.BillDays = importBillHistory ? parsed.BillDays : 0;
+            model.SnapshotDate = parsed.SnapshotDate;
+            model.Warnings = parsed.Warnings;
+            if (!importBillHistory)
+            {
+                model.Warnings = parsed.Warnings
+                    .Append("ไฟล์นี้เคยนำเข้าแล้ว — รอบนี้ปรับเฉพาะยอดสต็อกล่าสุด ไม่เพิ่มประวัติบิลซ้ำ")
+                    .ToList();
+            }
             model.CategoryNames = parsed.Rows
                 .Select(r => r.CategoryName)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -226,7 +307,7 @@ public class ImportController : Controller
         }
     }
 
-    private async Task<int> GetOrCreateCategoryAsync(string categoryName)
+    private async Task<int> GetOrCreateCategoryAsync(string categoryName, string variantLabel)
     {
         var name = NormalizeCategoryName(categoryName);
         var category = await _context.Categories
@@ -234,19 +315,20 @@ public class ImportController : Controller
 
         if (category != null)
         {
+            category.VariantLabel = variantLabel;
             if (!category.IsActive)
             {
                 category.IsActive = true;
-                await _context.SaveChangesAsync();
             }
 
+            await _context.SaveChangesAsync();
             return category.CategoryId;
         }
 
         var newCategory = new Category
         {
             CategoryName = name,
-            VariantLabel = "สี",
+            VariantLabel = variantLabel,
             SortOrder = 999,
             IsActive = true
         };
@@ -299,7 +381,11 @@ public class ImportController : Controller
         return created.TransactionTypeId;
     }
 
-    private async Task<(Product Product, bool Created)> GetOrCreateProductAsync(int categoryId, string sku, string productName)
+    private async Task<(Product Product, bool Created)> GetOrCreateProductAsync(
+        int categoryId,
+        string sku,
+        string productName,
+        string unit)
     {
         var normalizedSku = Truncate(sku.Trim(), 50);
         var normalizedName = Truncate(productName.Trim(), 300);
@@ -309,6 +395,7 @@ public class ImportController : Controller
         if (product != null)
         {
             product.CategoryId = categoryId;
+            product.Unit = ProductUnits.Normalize(unit);
             product.IsActive = true;
             product.UpdatedAt = DateTime.Now;
             return (product, false);
@@ -319,7 +406,7 @@ public class ImportController : Controller
             CategoryId = categoryId,
             Sku = normalizedSku,
             ProductName = normalizedName,
-            Unit = "คัน",
+            Unit = ProductUnits.Normalize(unit),
             IsActive = true,
             Note = "Imported from Excel"
         };
@@ -330,7 +417,7 @@ public class ImportController : Controller
 
     private async Task<(ProductVariant Variant, bool Created)> GetOrCreateVariantAsync(Product product, string variantName)
     {
-        var normalizedVariant = Truncate(variantName.Trim(), 100);
+        var normalizedVariant = Truncate(ProductVariantDefaults.NormalizeVariantName(variantName), 100);
         var variant = await _context.ProductVariants
             .Include(v => v.StockBalance)
             .FirstOrDefaultAsync(v => v.ProductId == product.ProductId && v.VariantName == normalizedVariant);
@@ -373,7 +460,60 @@ public class ImportController : Controller
         return (created, true);
     }
 
-    private static ParsedWorkbook ParseWorkbook(byte[] fileBytes, bool includeZeroStockProducts, string? categoryNameOverride)
+    private int AddAdjustmentTransactions(
+        int variantId,
+        int deltaPieces,
+        int deltaCases,
+        int receiveTypeId,
+        int issueTypeId,
+        DateOnly date,
+        string refNo,
+        string note,
+        string? userId)
+    {
+        var count = 0;
+        var receivePieces = Math.Max(0, deltaPieces);
+        var receiveCases = Math.Max(0, deltaCases);
+        if (receivePieces > 0 || receiveCases > 0)
+        {
+            _context.StockTransactions.Add(new StockTransaction
+            {
+                VariantId = variantId,
+                TransactionTypeId = receiveTypeId,
+                TxnDate = date,
+                QtyPieces = receivePieces,
+                QtyCases = receiveCases,
+                RefNo = refNo,
+                Note = note,
+                CreatedBy = userId
+            });
+            count++;
+        }
+
+        var issuePieces = Math.Max(0, -deltaPieces);
+        var issueCases = Math.Max(0, -deltaCases);
+        if (issuePieces > 0 || issueCases > 0)
+        {
+            _context.StockTransactions.Add(new StockTransaction
+            {
+                VariantId = variantId,
+                TransactionTypeId = issueTypeId,
+                TxnDate = date,
+                QtyPieces = issuePieces,
+                QtyCases = issueCases,
+                RefNo = refNo,
+                Note = note,
+                CreatedBy = userId
+            });
+            count++;
+        }
+
+        return count;
+    }
+
+    private static ParsedWorkbook ParseWorkbook(
+        byte[] fileBytes,
+        string fileName)
     {
         using var workbook = new XLWorkbook(new MemoryStream(fileBytes));
         var sheet = workbook.Worksheets.First();
@@ -385,107 +525,301 @@ public class ImportController : Controller
             throw new InvalidOperationException("ไฟล์ไม่มีข้อมูลที่อ่านได้");
         }
 
-        var stockBlocks = new List<List<ColorColumn>>();
-        for (var col = 1; col <= lastColumn; col++)
-        {
-            var title = sheet.Cell(1, col).GetString().Trim();
-            if (!title.Contains("สต็อก", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var colors = new List<ColorColumn>();
-            for (var colorCol = col; colorCol <= lastColumn; colorCol++)
-            {
-                var header = sheet.Cell(2, colorCol).GetString().Trim();
-                if (string.IsNullOrWhiteSpace(header))
-                {
-                    break;
-                }
-
-                if (header.Contains("บิล", StringComparison.OrdinalIgnoreCase) ||
-                    header.Equals("เข้า", StringComparison.OrdinalIgnoreCase) ||
-                    StockStopTokens.Contains(header))
-                {
-                    break;
-                }
-
-                colors.Add(new ColorColumn(colorCol, header));
-            }
-
-            if (colors.Count >= 3)
-            {
-                stockBlocks.Add(colors);
-            }
-        }
-
+        var stockBlocks = FindQuantityBlocks(sheet, lastColumn, "สต็อก");
+        var billBlocks = FindQuantityBlocks(sheet, lastColumn, "บิล");
         if (stockBlocks.Count == 0)
         {
             throw new InvalidOperationException("ไม่พบโครงคอลัมน์สต็อกในไฟล์ Excel");
         }
 
-        var activeColors = stockBlocks[^1];
-        var fixedCategoryName = !string.IsNullOrWhiteSpace(categoryNameOverride)
-            ? NormalizeCategoryName(categoryNameOverride)
-            : null;
+        if (billBlocks.Count == 0)
+        {
+            throw new InvalidOperationException("ไม่พบคอลัมน์บิลรายวันในไฟล์ Excel");
+        }
+
+        var latestStock = stockBlocks[^1];
+        if (latestStock.Columns.Count < 2 ||
+            !latestStock.Columns[^1].Name.Equals("ลัง", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "คอลัมน์สต็อกล่าสุดต้องลงท้ายด้วยคอลัมน์ 'ลัง'");
+        }
+
+        foreach (var bill in billBlocks)
+        {
+            if (bill.Columns.Count != latestStock.Columns.Count)
+            {
+                throw new InvalidOperationException(
+                    $"โครงคอลัมน์ {bill.Title} ไม่ตรงกับคอลัมน์สต็อกล่าสุด");
+            }
+        }
+
+        var (year, month) = ResolveImportPeriod(fileName);
+        if (billBlocks.Count > DateTime.DaysInMonth(year, month))
+        {
+            throw new InvalidOperationException("จำนวนคอลัมน์บิลมากกว่าจำนวนวันในเดือนของไฟล์");
+        }
+
+        var openingDate = new DateOnly(year, month, 1).AddDays(-1);
+        var snapshotDate = new DateOnly(year, month, billBlocks.Count);
+        var warnings = new List<string>();
+
+        for (var index = 0; index < billBlocks.Count; index++)
+        {
+            var expectedTitle = $"บิล{index + 1}";
+            if (!billBlocks[index].Title.Equals(expectedTitle, StringComparison.OrdinalIgnoreCase))
+            {
+                warnings.Add(
+                    $"หัวคอลัมน์ลำดับที่ {index + 1} เขียนว่า '{billBlocks[index].Title}' " +
+                    $"ระบบยึดตำแหน่งเป็นวันที่ {index + 1}");
+            }
+        }
+
+        var colorColumns = latestStock.Columns.Take(latestStock.Columns.Count - 1).ToList();
+        var caseColumnIndex = latestStock.Columns.Count - 1;
+        var currentCategory = NormalizeCategoryName(sheet.Cell(2, 3).GetString());
+        if (string.IsNullOrWhiteSpace(currentCategory))
+        {
+            throw new InvalidOperationException("ไม่พบชื่อหมวดหมู่เริ่มต้นที่เซลล์ C2");
+        }
 
         var rows = new List<ParsedRow>();
         for (var row = 3; row <= lastRow; row++)
         {
             var sku = sheet.Cell(row, 2).GetString().Trim();
             var productName = sheet.Cell(row, 3).GetString().Trim();
-            if (string.IsNullOrWhiteSpace(sku) || string.IsNullOrWhiteSpace(productName))
+
+            if (!string.IsNullOrWhiteSpace(productName) &&
+                (string.IsNullOrWhiteSpace(sku) ||
+                 sku.Equals("รหัสสินค้า", StringComparison.OrdinalIgnoreCase)))
+            {
+                currentCategory = NormalizeCategoryName(productName);
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(sku) ||
+                sku.Equals("รหัสสินค้า", StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(productName))
             {
                 continue;
             }
 
-            var variants = new List<ParsedVariant>();
-            foreach (var color in activeColors)
+            var isCaseQuantity = UsesCaseQuantity(currentCategory);
+            var parsedVariants = new List<ParsedVariant>();
+
+            if (isCaseQuantity)
             {
-                var qtyPieces = ParseIntegerCell(sheet.Cell(row, color.ColumnIndex));
-                variants.Add(new ParsedVariant(color.Name, qtyPieces));
+                var packSize = ParsePackSize(productName);
+                var targetCases = ParseIntegerCell(
+                    sheet.Cell(row, latestStock.Columns[caseColumnIndex].ColumnIndex));
+                var issues = new List<ParsedIssue>();
+
+                for (var dayIndex = 0; dayIndex < billBlocks.Count; dayIndex++)
+                {
+                    var rawIssue = ParseIntegerCell(
+                        sheet.Cell(row, billBlocks[dayIndex].Columns[caseColumnIndex].ColumnIndex));
+                    if (rawIssue == 0)
+                    {
+                        continue;
+                    }
+
+                    if (rawIssue % packSize != 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"แถว {row} ({sku}) บิล{dayIndex + 1} จำนวน {rawIssue} " +
+                            $"หารขนาดลัง {packSize} ไม่ลงตัว");
+                    }
+
+                    issues.Add(new ParsedIssue(
+                        new DateOnly(year, month, dayIndex + 1),
+                        0,
+                        rawIssue / packSize));
+                }
+
+                var unexpectedColorQty = colorColumns.Sum(c =>
+                    ParseIntegerCell(sheet.Cell(row, c.ColumnIndex)));
+                if (unexpectedColorQty > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"แถว {row} ({sku}) เป็นสินค้านับกระสอบ/ลัง แต่พบยอดในคอลัมน์สี");
+                }
+
+                parsedVariants.Add(new ParsedVariant(
+                    StandardVariantName,
+                    0,
+                    targetCases,
+                    issues));
+            }
+            else
+            {
+                for (var colorIndex = 0; colorIndex < colorColumns.Count; colorIndex++)
+                {
+                    var targetPieces = ParseIntegerCell(
+                        sheet.Cell(row, colorColumns[colorIndex].ColumnIndex));
+                    var issues = ReadPieceIssues(
+                        sheet,
+                        row,
+                        billBlocks,
+                        colorIndex,
+                        year,
+                        month);
+
+                    // ทุกสีใน snapshot ต้องถูกประมวลผล รวมถึงค่า 0 เพื่อใช้ลดของเดิมเป็น 0
+                    parsedVariants.Add(new ParsedVariant(
+                        NormalizeVariantName(colorColumns[colorIndex].Name),
+                        targetPieces,
+                        0,
+                        issues));
+                }
+
+                var standardTargetPieces = ParseIntegerCell(
+                    sheet.Cell(row, latestStock.Columns[caseColumnIndex].ColumnIndex));
+                var standardIssues = ReadPieceIssues(
+                    sheet,
+                    row,
+                    billBlocks,
+                    caseColumnIndex,
+                    year,
+                    month);
+                if (standardTargetPieces > 0 || standardIssues.Count > 0 ||
+                    UsesStandardVariant(currentCategory))
+                {
+                    parsedVariants.Add(new ParsedVariant(
+                        StandardVariantName,
+                        standardTargetPieces,
+                        0,
+                        standardIssues));
+                }
             }
 
-            var hasPositiveStock = variants.Any(v => v.QtyPieces > 0);
-            if (hasPositiveStock || includeZeroStockProducts)
-            {
-                rows.Add(new ParsedRow(
-                    fixedCategoryName ?? ResolveCategoryBySku(sku),
-                    Truncate(sku, 50),
-                    Truncate(productName, 300),
-                    variants));
-            }
+            rows.Add(new ParsedRow(
+                currentCategory,
+                Truncate(sku, 50),
+                Truncate(productName, 300),
+                isCaseQuantity ? ProductUnits.Case : ProductUnits.Piece,
+                parsedVariants));
         }
 
         return new ParsedWorkbook(
-            activeColors.Select(c => c.Name).ToList(),
-            rows);
+            colorColumns.Select(c => NormalizeVariantName(c.Name)).ToList(),
+            rows,
+            openingDate,
+            snapshotDate,
+            billBlocks.Count,
+            warnings);
     }
 
-    private static string ResolveCategoryBySku(string sku)
+    private static List<QuantityBlock> FindQuantityBlocks(
+        IXLWorksheet sheet,
+        int lastColumn,
+        string titleToken)
     {
-        var normalized = sku.Trim().ToUpperInvariant();
-        if (normalized.StartsWith("BL-BR", StringComparison.OrdinalIgnoreCase))
+        var blocks = new List<QuantityBlock>();
+        for (var col = 1; col <= lastColumn; col++)
         {
-            return "BL-BR - ยางในมอเตอร์ไซต์";
+            var title = sheet.Cell(1, col).GetString().Trim();
+            var firstHeader = sheet.Cell(2, col).GetString().Trim();
+            if (!title.Contains(titleToken, StringComparison.OrdinalIgnoreCase) ||
+                string.IsNullOrWhiteSpace(firstHeader))
+            {
+                continue;
+            }
+
+            var columns = new List<QuantityColumn>();
+            for (var quantityCol = col; quantityCol <= lastColumn; quantityCol++)
+            {
+                var header = sheet.Cell(2, quantityCol).GetString().Trim();
+                if (string.IsNullOrWhiteSpace(header))
+                {
+                    break;
+                }
+
+                columns.Add(new QuantityColumn(quantityCol, header));
+            }
+
+            if (columns.Count >= 2)
+            {
+                blocks.Add(new QuantityBlock(title, columns));
+            }
         }
 
-        if (normalized.StartsWith("BLC", StringComparison.OrdinalIgnoreCase))
+        return blocks;
+    }
+
+    private static List<ParsedIssue> ReadPieceIssues(
+        IXLWorksheet sheet,
+        int row,
+        IReadOnlyList<QuantityBlock> billBlocks,
+        int quantityIndex,
+        int year,
+        int month)
+    {
+        var issues = new List<ParsedIssue>();
+        for (var dayIndex = 0; dayIndex < billBlocks.Count; dayIndex++)
         {
-            return "BLC - ยางในจักรยาน";
+            var qtyPieces = ParseIntegerCell(
+                sheet.Cell(row, billBlocks[dayIndex].Columns[quantityIndex].ColumnIndex));
+            if (qtyPieces > 0)
+            {
+                issues.Add(new ParsedIssue(
+                    new DateOnly(year, month, dayIndex + 1),
+                    qtyPieces,
+                    0));
+            }
         }
 
-        if (normalized.StartsWith("BLB", StringComparison.OrdinalIgnoreCase))
+        return issues;
+    }
+
+    private static (int Year, int Month) ResolveImportPeriod(string fileName)
+    {
+        var matches = Regex.Matches(
+            Path.GetFileNameWithoutExtension(fileName),
+            @"(?<!\d)(0[1-9]|1[0-2])(\d{2})(?!\d)");
+        if (matches.Count == 0)
         {
-            return "BLB - จักรยาน";
+            throw new InvalidOperationException(
+                "ชื่อไฟล์ต้องมีเดือนและปีแบบ MMYY เช่น 0769 เพื่อกำหนดวันที่ของบิล");
         }
 
-        if (normalized.StartsWith("BL", StringComparison.OrdinalIgnoreCase))
+        var match = matches[matches.Count - 1];
+        var month = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture);
+        var shortYear = int.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+        var year = shortYear >= 43
+            ? 2500 + shortYear - 543
+            : 2000 + shortYear;
+        return (year, month);
+    }
+
+    private static int ParsePackSize(string productName)
+    {
+        var match = Regex.Match(productName, @"\((\d+)\s*เส้น\)");
+        if (!match.Success ||
+            !int.TryParse(match.Groups[1].Value, out var packSize) ||
+            packSize <= 0)
         {
-            return "BL - รถเด็กหัดเดิน";
+            throw new InvalidOperationException(
+                $"ไม่พบขนาดบรรจุต่อหนึ่งลังในชื่อสินค้า '{productName}'");
         }
 
-        return "นำเข้าจาก Excel";
+        return packSize;
+    }
+
+    private static bool UsesCaseQuantity(string categoryName)
+    {
+        return CaseQuantityCategories.Contains(NormalizeCategoryName(categoryName));
+    }
+
+    private static bool UsesStandardVariant(string categoryName)
+    {
+        var normalized = NormalizeCategoryName(categoryName);
+        return UsesCaseQuantity(normalized) ||
+            normalized.StartsWith("อะไหล่", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeVariantName(string value)
+    {
+        return ProductVariantDefaults.NormalizeVariantName(value);
     }
 
     private static int ParseIntegerCell(IXLCell cell)
@@ -542,12 +876,26 @@ public class ImportController : Controller
         return value.Length <= maxLength ? value : value[..maxLength];
     }
 
-    private sealed record ColorColumn(int ColumnIndex, string Name);
-    private sealed record ParsedVariant(string Name, int QtyPieces);
+    private sealed record QuantityColumn(int ColumnIndex, string Name);
+    private sealed record QuantityBlock(string Title, IReadOnlyList<QuantityColumn> Columns);
+    private sealed record ParsedIssue(DateOnly Date, int QtyPieces, int QtyCases);
+    private sealed record ParsedVariant(
+        string Name,
+        int QtyPieces,
+        int QtyCases,
+        IReadOnlyList<ParsedIssue> Issues);
     private sealed record ParsedRow(
         string CategoryName,
         string Sku,
         string ProductName,
+        string Unit,
         IReadOnlyList<ParsedVariant> Variants);
-    private sealed record ParsedWorkbook(IReadOnlyList<string> ColorHeaders, IReadOnlyList<ParsedRow> Rows);
+    private sealed record ParsedWorkbook(
+        IReadOnlyList<string> ColorHeaders,
+        IReadOnlyList<ParsedRow> Rows,
+        DateOnly OpeningDate,
+        DateOnly SnapshotDate,
+        int BillDays,
+        IReadOnlyList<string> Warnings);
+    private sealed record ImportedVariant(ProductVariant Entity, ParsedVariant Parsed);
 }

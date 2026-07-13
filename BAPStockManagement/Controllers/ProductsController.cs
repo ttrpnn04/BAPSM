@@ -140,7 +140,7 @@ public class ProductsController : Controller
             CategoryId = model.CategoryId,
             Sku = model.Sku.Trim(),
             ProductName = model.ProductName.Trim(),
-            Unit = model.Unit.Trim(),
+            Unit = ProductUnits.Normalize(model.Unit),
             Note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim(),
             IsActive = true
         };
@@ -220,7 +220,7 @@ public class ProductsController : Controller
         product.CategoryId = model.CategoryId;
         product.Sku = model.Sku.Trim();
         product.ProductName = model.ProductName.Trim();
-        product.Unit = model.Unit.Trim();
+        product.Unit = ProductUnits.Normalize(model.Unit);
         product.Note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim();
         product.IsActive = model.IsActive;
         product.UpdatedAt = DateTime.Now;

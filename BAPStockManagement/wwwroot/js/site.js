@@ -108,8 +108,37 @@
         altInputClass: 'form-control',
         allowInput: false,
         disableMobile: true,
-        onChange: function () {
-          control.dispatchEvent(new Event('change', { bubbles: true }));
+        onChange: function (selectedDates, dateStr, instance) {
+          // ให้ input ที่มี name ส่งค่า yyyy-MM-dd แน่นอนตอน submit
+          instance.input.value = dateStr;
+
+          var form = instance.input.closest('form');
+          if (form && form.closest('.filter-bar')) {
+            var fromInput = form.querySelector('input[name="fromDate"]');
+            var toInput = form.querySelector('input[name="toDate"]');
+            if (fromInput && toInput) {
+              // เลือกวันเดียวแล้วอีกช่องว่าง → กรองเฉพาะวันนั้น
+              if (instance.input === fromInput && !toInput.value) {
+                if (toInput._flatpickr) toInput._flatpickr.setDate(dateStr, false);
+                else toInput.value = dateStr;
+              } else if (instance.input === toInput && !fromInput.value) {
+                if (fromInput._flatpickr) fromInput._flatpickr.setDate(dateStr, false);
+                else fromInput.value = dateStr;
+              } else if (fromInput.value && toInput.value && fromInput.value > toInput.value) {
+                if (instance.input === fromInput) {
+                  if (toInput._flatpickr) toInput._flatpickr.setDate(dateStr, false);
+                  else toInput.value = dateStr;
+                } else {
+                  if (fromInput._flatpickr) fromInput._flatpickr.setDate(dateStr, false);
+                  else fromInput.value = dateStr;
+                }
+              }
+            }
+          }
+
+          window.setTimeout(function () {
+            instance.input.dispatchEvent(new Event('change', { bubbles: true }));
+          }, 0);
         }
       });
     });
@@ -237,11 +266,11 @@
     { keys: ['เขียวออ่อน', 'เขียวอ่อน'], bg: '#dcfce7', text: '#166534', dot: '#4ade80' },
     { keys: ['เขียว'], bg: '#d1fae5', text: '#065f46', dot: '#10b981' },
     { keys: ['ชมพูอ่อน'], bg: '#fdf2f8', text: '#9d174d', dot: '#f9a8d4' },
-    { keys: ['ชมพูเข้ม', 'ชมพู', 'ชม'], bg: '#fce7f3', text: '#9d174d', dot: '#ec4899' },
+    { keys: ['ชมพูเข้ม', 'ชมเข้ม', 'ชมพู', 'ชม'], bg: '#fce7f3', text: '#9d174d', dot: '#ec4899' },
     { keys: ['ทอง'], bg: '#fef3c7', text: '#78350f', dot: '#f59e0b' },
     { keys: ['เหลือง', 'ครีม'], bg: '#fef9c3', text: '#713f12', dot: '#eab308' },
     { keys: ['ม่วง'], bg: '#ede9fe', text: '#4c1d95', dot: '#8b5cf6' },
-    { keys: ['น้ำตาล'], bg: '#fef3c7', text: '#92400e', dot: '#b45309' },
+    { keys: ['น้ำตาล', 'ตาล'], bg: '#fef3c7', text: '#92400e', dot: '#b45309' },
     { keys: ['เทา'], bg: '#f1f5f9', text: '#475569', dot: '#94a3b8' },
     { keys: ['ขาว'], bg: '#f8fafc', text: '#334155', dot: '#cbd5e1' },
     { keys: ['วัว'], bg: '#fef2f2', text: '#7f1d1d', dot: '#fca5a5' }
