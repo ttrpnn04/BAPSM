@@ -179,6 +179,7 @@
                                 <th>SKU</th>
                                 <th>สินค้า</th>
                                 <th class="text-end">ชิ้น</th>
+                                <th class="text-end">กระสอบ/ลัง/เส้น</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -189,6 +190,7 @@
                                     <td><code>@item.Sku</code></td>
                                     <td class="fw-medium">@item.ProductName</td>
                                     <td class="text-end fw-semibold text-warning">@item.QtyPieces.ToString("N0")</td>
+                                    <td class="text-end fw-semibold text-warning">@item.QtyCases.ToString("N0")</td>
                                 </tr>
                             }
                         </tbody>

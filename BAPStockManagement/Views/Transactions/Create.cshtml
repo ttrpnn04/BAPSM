@@ -97,7 +97,7 @@
                     <button type="button" class="btn btn-outline-primary btn-sm" id="addTxnLineBtn">
                         <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
                     </button>
-                    <div class="form-text">เพิ่มได้หลายรายการ แล้วกดบันทึกครั้งเดียว</div>
+                    <div class="form-text">กด Enter เพื่อเพิ่มรายการ แล้วกดบันทึกเมื่อเสร็จ</div>
                 </div>
 
                 <div class="table-responsive mb-3 d-none" id="txnLinesWrap">
@@ -116,8 +116,8 @@
                 </div>
 
                 <div class="mb-3">
-                    <label asp-for="RefNo" class="form-label"></label>
-                    <input asp-for="RefNo" class="form-control" placeholder="เช่น ร้าน A, PO-001" />
+                    <label asp-for="RefNo" class="form-label"></label> <span class="text-danger">*</span>
+                    <input asp-for="RefNo" class="form-control" placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
                     <span asp-validation-for="RefNo" class="text-danger small"></span>
                 </div>
 
@@ -128,7 +128,7 @@
                 </div>
 
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-primary" id="createSubmitBtn">
                         <i class="bi bi-check-lg me-1"></i>บันทึก
                     </button>
                     <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
@@ -291,6 +291,7 @@
 
             // สินค้าหน่วยลัง/มีรุ่นเดียว เลือกให้อัตโนมัติ ไม่ต้องมีสี
             const preferred = filtered.find(v => v.variantId === initialVariantId) ||
+                (caseOnly ? filtered.find(v => v.label === 'มาตรฐาน') : null) ||
                 (filtered.length === 1 ? filtered[0] : null) ||
                 filtered.find(v => v.label === 'มาตรฐาน') ||
                 filtered[0];
@@ -302,7 +303,7 @@
 
         function isCaseUnit(unit) {
             const value = unit || '';
-            return value.includes('ลัง') || value.includes('กระสอบ');
+            return value.includes('ลัง') || value.includes('กระสอบ') || value.includes('เส้น');
         }
 
         function isCaseVariant(variant) {
@@ -450,8 +451,21 @@
             }
 
             const { qtyPieces, qtyCases } = splitQty(variant, qty);
-
             const existing = txnLines.find(line => line.variantId === variantId);
+            const nextPieces = (existing?.qtyPieces || 0) + qtyPieces;
+            const nextCases = (existing?.qtyCases || 0) + qtyCases;
+
+            if (currentDirection() < 0) {
+                if (nextPieces > variant.qtyPieces || nextCases > variant.qtyCases) {
+                    if (showAlert) {
+                        alert(isCaseVariant(variant)
+                            ? `สต็อกไม่เพียงพอ (คงเหลือ ${variant.qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น)`
+                            : `สต็อกไม่เพียงพอ (คงเหลือ ${variant.qtyPieces.toLocaleString()} ชิ้น)`);
+                    }
+                    return false;
+                }
+            }
+
             if (existing) {
                 existing.qtyPieces += qtyPieces;
                 existing.qtyCases += qtyCases;
@@ -469,6 +483,8 @@
             qtyPiecesInput.value = '0';
             qtyCasesInput.value = '0';
             renderTxnLines();
+            productSearch.focus();
+            productSearch.select();
             return true;
         }
 
@@ -487,13 +503,41 @@
             renderTxnLines();
         });
 
-        form.addEventListener('submit', (e) => {
-            if (txnLines.length > 0) return;
+        /* Enter = เพิ่มรายการ (ไม่บันทึก) */
+        form.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            if (e.target.tagName === 'TEXTAREA') return;
+            if (e.target.closest('#createSubmitBtn')) return;
+            e.preventDefault();
+            if (e.target.closest('button, a')) return;
+            addCurrentLine();
+        });
 
-            const variant = allVariants.find(v => v.variantId === variantHidden.value);
-            syncHiddenQtyFields(variant);
-            const hasDraftQty = readQty(qtyValueInput) > 0;
-            if (hasDraftQty && addCurrentLine(false)) return;
+        // กัน Enter/submit อัตโนมัติ — บันทึกเฉพาะปุ่ม
+        form.addEventListener('submit', (e) => e.preventDefault());
+
+        document.getElementById('createSubmitBtn')?.addEventListener('click', () => {
+            const refNoInput = form.querySelector('[name="RefNo"]');
+            if (refNoInput && !refNoInput.value.trim()) {
+                refNoInput.classList.add('is-invalid');
+                refNoInput.focus();
+                return;
+            }
+            if (refNoInput) refNoInput.classList.remove('is-invalid');
+
+            if (txnLines.length === 0) {
+                const variant = allVariants.find(v => v.variantId === variantHidden.value);
+                syncHiddenQtyFields(variant);
+                const hasDraftQty = readQty(qtyValueInput) > 0;
+                if (hasDraftQty) addCurrentLine(false);
+            }
+
+            if (txnLines.length === 0) {
+                alert('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ');
+                return;
+            }
+
+            HTMLFormElement.prototype.submit.call(form);
         });
 
         /* init */

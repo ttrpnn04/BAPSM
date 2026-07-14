@@ -1,0 +1,36 @@
+==== C:\Users\Admin\Downloads\สต็อกจักรยาน 0769.xlsx size=753320 max_col=467 ====
+bill_sections=[(20, 'บิล1', True), (52, 'บิล2', True), (84, 'บิล3', True), (116, 'บิล4', True), (148, 'บิล5', True), (180, 'บิล6', True), (195, 'บิล7', False), (212, 'บิล6', True), (244, 'บิล8', True), (276, 'บิล9', True), (308, 'บิล10', True), (340, 'บิล11', True), (372, 'บิล12', True), (404, 'บิล13', True), (436, 'บิล14', True)]
+stock_starts=[(4, True), (36, True), (68, True), (100, True), (132, True), (164, True), (196, True), (228, True), (260, True), (292, True), (324, True), (356, True), (388, True), (420, False), (452, True)]
+hidden_col_count=254 hidden_sample=[4, 8, 9, 10, 11, 14, 15, 17, 18, 20, 24, 25, 26, 27, 30, 31, 33, 34, 36, 40] ... last_hidden=[401, 402, 404, 408, 409, 410, 411, 414, 415, 417, 418, 436, 440, 441, 442, 443, 446, 447, 449, 450, 451, 452, 456, 457, 458, 459, 462, 463, 465, 466, 467]
+  c420 hidden=False r1='สต็อก' r2='แดง'
+  c435 hidden=False r1='สต็อก' r2=''
+  c436 hidden=True r1='บิล14' r2='แดง'
+  c440 hidden=True r1='' r2='เขียว'
+  c441 hidden=True r1='' r2='เขียวอ่อน'
+  c442 hidden=True r1='' r2='ชมพูอ่อน'
+  c443 hidden=True r1='' r2='ชมเข้ม/ชม/ชม'
+  c446 hidden=True r1='' r2='วัว/ขาว /แดง'
+  c447 hidden=True r1='' r2='ดำ/ธงฟ้า'
+  c449 hidden=True r1='' r2='เทา'
+  c450 hidden=True r1='' r2='ลัง'
+  c451 hidden=True r1='บิล14' r2=''
+  c452 hidden=True r1='สต็อก' r2='แดง'
+  c456 hidden=True r1='' r2='เขียว'
+  c457 hidden=True r1='' r2='เขียวอ่อน'
+  c458 hidden=True r1='' r2='ชมพูอ่อน'
+  c459 hidden=True r1='' r2='ชมเข้ม/ชม/ชม'
+  c462 hidden=True r1='' r2='วัว/ขาว /แดง'
+  c463 hidden=True r1='' r2='ดำ/ธงฟ้า'
+  c465 hidden=True r1='' r2='เทา'
+  c466 hidden=True r1='' r2='ลัง'
+  c467 hidden=True r1='สต็อก' r2=''
+
+==== C:\Users\Admin\OneDrive\Desktop\สต็อกจักรยาน 0769 new.xlsx size=31399 max_col=18 ====
+bill_sections=[]
+stock_starts=[]
+hidden_col_count=0 hidden_sample=[] ... last_hidden=[]
+
+==== C:\Users\Admin\OneDrive\Desktop\สต็อกจักรยาน 0769.xlsx size=46447 max_col=34 ====
+bill_sections=[]
+stock_starts=[(4, True)]
+hidden_col_count=9 hidden_sample=[4, 8, 9, 10, 11, 14, 15, 17, 18] ... last_hidden=[]

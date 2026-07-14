@@ -1,3 +1,4 @@
+@using BAPStockManagement.Constants
 @model BAPStockManagement.ViewModels.Stock.StockIndexViewModel
 @{
     ViewData["Title"] = "สต็อกสินค้า";
@@ -60,7 +61,7 @@
                 <div>
                     <div class="stat-label">สินค้าใกล้หมด</div>
                     <div class="stat-value">@Model.LowStockCount</div>
-                    <div class="stat-sub">เหลือ ≤ 10 ชิ้น</div>
+                    <div class="stat-sub">เหลือ ≤ @StockThresholds.LowStockLimit ชิ้น/ลัง</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
             </div>
@@ -181,14 +182,30 @@ else
                                 @if (item.Colors.Any())
                                 {
                                     <div class="color-swatch-grid">
+                                        @{
+                                            var itemIsCaseUnit = ProductUnits.IsCaseUnit(item.Unit);
+                                        }
                                         @foreach (var color in item.Colors)
                                         {
-                                            var colorEmpty = color.QtyPieces == 0;
+                                            var colorEmpty = color.QtyPieces == 0 && color.QtyCases == 0;
+                                            var displayQty = itemIsCaseUnit
+                                                ? (color.QtyCases > 0 ? color.QtyCases.ToString("N0") : (colorEmpty ? "" : color.QtyPieces.ToString("N0")))
+                                                : (color.QtyPieces > 0 ? color.QtyPieces.ToString("N0") : (color.QtyCases > 0 ? color.QtyCases.ToString("N0") : ""));
+                                            var displayLabel = itemIsCaseUnit && color.VariantName == ProductVariantDefaults.StandardVariantName
+                                                ? ProductUnits.Case
+                                                : color.VariantName;
+                                            var qtyTitle = colorEmpty
+                                                ? "หมด"
+                                                : itemIsCaseUnit && color.QtyCases > 0
+                                                    ? $"{color.QtyCases.ToString("N0")} {ProductUnits.Case}"
+                                                    : color.QtyPieces > 0
+                                                        ? $"{color.QtyPieces.ToString("N0")} ชิ้น"
+                                                        : $"{color.QtyCases.ToString("N0")} {ProductUnits.Case}";
                                             <span class="color-swatch @(colorEmpty ? "color-swatch--empty" : "")"
                                                   data-vname="@color.VariantName"
-                                                  title="@color.VariantName — @(colorEmpty ? "หมด" : color.QtyPieces.ToString("N0") + " ชิ้น")">
-                                                <span class="color-swatch__fill">@(colorEmpty ? "" : color.QtyPieces.ToString("N0"))</span>
-                                                <span class="color-swatch__label">@color.VariantName</span>
+                                                  title="@displayLabel — @qtyTitle">
+                                                <span class="color-swatch__fill">@displayQty</span>
+                                                <span class="color-swatch__label">@displayLabel</span>
                                             </span>
                                         }
                                     </div>
@@ -469,6 +486,7 @@ else
             });
 
             const preferred = filtered.find(v => v.variantId === initialVariantId) ||
+                (caseOnly ? filtered.find(v => v.label === 'มาตรฐาน') : null) ||
                 (filtered.length === 1 ? filtered[0] : null) ||
                 filtered.find(v => v.label === 'มาตรฐาน') ||
                 filtered[0];
@@ -480,7 +498,7 @@ else
 
         function isCaseUnit(unit) {
             const value = unit || '';
-            return value.includes('ลัง') || value.includes('กระสอบ');
+            return value.includes('ลัง') || value.includes('กระสอบ') || value.includes('เส้น');
         }
 
         function isCaseVariant(variant) {
@@ -628,8 +646,21 @@ else
             }
 
             const { qtyPieces, qtyCases } = splitQty(variant, qty);
-
             const existing = txnLines.find(line => line.variantId === variantId);
+            const nextPieces = (existing?.qtyPieces || 0) + qtyPieces;
+            const nextCases = (existing?.qtyCases || 0) + qtyCases;
+
+            if (currentDirection() < 0) {
+                if (nextPieces > variant.qtyPieces || nextCases > variant.qtyCases) {
+                    if (showAlert) {
+                        alert(isCaseVariant(variant)
+                            ? `สต็อกไม่เพียงพอ (คงเหลือ ${variant.qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น)`
+                            : `สต็อกไม่เพียงพอ (คงเหลือ ${variant.qtyPieces.toLocaleString()} ชิ้น)`);
+                    }
+                    return false;
+                }
+            }
+
             if (existing) {
                 existing.qtyPieces += qtyPieces;
                 existing.qtyCases += qtyCases;
@@ -647,6 +678,8 @@ else
             qtyPiecesInput.value = '0';
             qtyCasesInput.value = '0';
             renderTxnLines();
+            productSearch.focus();
+            productSearch.select();
             return true;
         }
 
@@ -673,18 +706,46 @@ else
             });
         });
 
-        /* AJAX form submit */
+        /* Enter = เพิ่มรายการ (ไม่บันทึก) */
+        form.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            if (e.target.tagName === 'TEXTAREA') return;
+            if (e.target.closest('#modalSubmitBtn')) return;
+            e.preventDefault();
+            if (e.target.closest('button, a')) return;
+            addCurrentLine();
+        });
+
+        /* AJAX save — เฉพาะปุ่มบันทึก */
         const alertDiv  = document.getElementById('modalAlert');
         const submitBtn = document.getElementById('modalSubmitBtn');
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        async function saveTransaction() {
+            const refNoInput = document.getElementById('txnRefNo');
+            if (!refNoInput || !refNoInput.value.trim()) {
+                if (refNoInput) {
+                    refNoInput.classList.add('is-invalid');
+                    refNoInput.focus();
+                }
+                alertDiv.textContent = 'กรุณากรอกชื่อร้าน / เลขที่อ้างอิง';
+                alertDiv.classList.remove('d-none');
+                return;
+            }
+            refNoInput.classList.remove('is-invalid');
+
             if (txnLines.length === 0) {
                 const variant = allVariants.find(v => v.variantId === variantHidden.value);
                 syncHiddenQtyFields(variant);
                 const hasDraftQty = readQty(qtyValueInput) > 0;
                 if (hasDraftQty) addCurrentLine(false);
             }
+
+            if (txnLines.length === 0) {
+                alertDiv.textContent = 'กรุณาเพิ่มรายการอย่างน้อย 1 รายการ';
+                alertDiv.classList.remove('d-none');
+                return;
+            }
+
             alertDiv.classList.add('d-none');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังบันทึก...';
@@ -713,6 +774,13 @@ else
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>บันทึก';
             }
+        }
+
+        form.addEventListener('submit', (e) => e.preventDefault());
+        submitBtn?.addEventListener('click', () => saveTransaction());
+
+        document.getElementById('txnRefNo')?.addEventListener('input', (e) => {
+            if (e.target.value.trim()) e.target.classList.remove('is-invalid');
         });
     }
 
@@ -795,21 +863,48 @@ else
     });
 
     /* ── alert modal (ใกล้หมด / หมดสต็อก) ───────────────────── */
-    function createChip(variantName, qtyPieces) {
-        const col   = resolveColor(variantName);
-        const empty = qtyPieces === 0;
+    function isCaseUnitName(unit) {
+        const value = unit || '';
+        return value.includes('ลัง') || value.includes('กระสอบ') || value.includes('เส้น');
+    }
+
+    function createChip(variantName, qtyPieces, qtyCases, unit) {
+        const col = resolveColor(variantName);
+        const empty = qtyPieces === 0 && qtyCases === 0;
+        const caseUnit = isCaseUnitName(unit);
+        const displayLabel = caseUnit && variantName === 'มาตรฐาน'
+            ? 'กระสอบ/ลัง/เส้น'
+            : variantName;
+        let qtyText = '';
+        let titleQty = 'หมด';
+        if (!empty) {
+            if (caseUnit && qtyCases > 0) {
+                qtyText = qtyCases.toLocaleString();
+                titleQty = `${qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น`;
+            } else if (qtyPieces > 0 && qtyCases > 0) {
+                qtyText = qtyPieces.toLocaleString();
+                titleQty = `${qtyPieces.toLocaleString()} ชิ้น / ${qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น`;
+            } else if (qtyCases > 0) {
+                qtyText = qtyCases.toLocaleString();
+                titleQty = `${qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น`;
+            } else {
+                qtyText = qtyPieces.toLocaleString();
+                titleQty = `${qtyPieces.toLocaleString()} ชิ้น`;
+            }
+        }
+
         const swatch = document.createElement('span');
         swatch.className = `color-swatch color-swatch--table${empty ? ' color-swatch--empty' : ''}`;
         swatch.style.setProperty('--swatch-color', col.dot);
-        swatch.title = `${variantName} — ${empty ? 'หมด' : qtyPieces.toLocaleString() + ' ชิ้น'}`;
+        swatch.title = `${displayLabel} — ${titleQty}`;
 
         const fill = document.createElement('span');
         fill.className = 'color-swatch__fill';
-        fill.textContent = empty ? '' : qtyPieces.toLocaleString();
+        fill.textContent = qtyText;
 
         const label = document.createElement('span');
         label.className = 'color-swatch__label';
-        label.textContent = variantName;
+        label.textContent = displayLabel;
 
         swatch.appendChild(fill);
         swatch.appendChild(label);
@@ -819,7 +914,9 @@ else
     async function openAlertModal(alertType) {
         const isOut = alertType === 'out';
         const icon  = isOut ? 'bi-x-circle text-danger' : 'bi-exclamation-triangle text-warning';
-        const title = isOut ? 'สินค้าหมดสต็อก' : 'สินค้าใกล้หมด (≤ 10 ชิ้น)';
+        const title = isOut
+            ? 'สินค้าหมดสต็อก'
+            : 'สินค้าใกล้หมด (≤ 10 ชิ้น หรือ กระสอบ/ลัง/เส้น)';
 
         const titleEl = document.getElementById('alertModalTitle');
         titleEl.textContent = '';
@@ -867,8 +964,12 @@ else
             }
             const piecesHead = document.createElement('th');
             piecesHead.className = 'text-end text-muted small fw-normal';
-            piecesHead.textContent = 'ชิ้นรวม';
+            piecesHead.textContent = 'ชิ้น';
             headRow.appendChild(piecesHead);
+            const casesHead = document.createElement('th');
+            casesHead.className = 'text-end text-muted small fw-normal';
+            casesHead.textContent = 'กระสอบ/ลัง/เส้น';
+            headRow.appendChild(casesHead);
             thead.appendChild(headRow);
 
             const tbody = document.createElement('tbody');
@@ -896,11 +997,12 @@ else
 
                 if (colorCol) {
                     const colorTd = document.createElement('td');
-                    const activeColors = item.colors.filter(c => c.qtyPieces > 0);
+                    const activeColors = item.colors.filter(c => c.qtyPieces > 0 || c.qtyCases > 0);
                     if (activeColors.length) {
                         const grid = document.createElement('div');
                         grid.className = 'color-swatch-grid';
-                        activeColors.forEach(c => grid.appendChild(createChip(c.variantName, c.qtyPieces)));
+                        activeColors.forEach(c => grid.appendChild(
+                            createChip(c.variantName, c.qtyPieces, c.qtyCases, item.unit)));
                         colorTd.appendChild(grid);
                     } else {
                         const empty = document.createElement('span');
@@ -912,9 +1014,14 @@ else
                 }
 
                 const piecesTd = document.createElement('td');
-                piecesTd.className = `text-end ${item.qtyPieces === 0 ? 'text-danger fw-bold' : 'text-warning fw-bold'}`;
-                piecesTd.textContent = item.qtyPieces.toLocaleString();
+                const casesTd = document.createElement('td');
+                const danger = item.qtyPieces === 0 && item.qtyCases === 0;
+                piecesTd.className = `text-end ${danger ? 'text-danger fw-bold' : 'text-warning fw-bold'}`;
+                casesTd.className = `text-end ${danger ? 'text-danger fw-bold' : 'text-warning fw-bold'}`;
+                piecesTd.textContent = Number(item.qtyPieces || 0).toLocaleString();
+                casesTd.textContent = Number(item.qtyCases || 0).toLocaleString();
                 tr.appendChild(piecesTd);
+                tr.appendChild(casesTd);
 
                 tbody.appendChild(tr);
             }

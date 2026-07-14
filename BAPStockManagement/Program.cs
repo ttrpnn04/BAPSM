@@ -63,6 +63,7 @@ using (var scope = app.Services.CreateScope())
     await IdentitySeeder.SeedAsync(scope.ServiceProvider);
     await StockDocumentSeeder.EnsureAsync(scope.ServiceProvider);
     await ProductVariantSeeder.SeedAsync(scope.ServiceProvider);
+    await StockLedgerRepairSeeder.EnsureAsync(scope.ServiceProvider);
 }
 
 if (!app.Environment.IsDevelopment())

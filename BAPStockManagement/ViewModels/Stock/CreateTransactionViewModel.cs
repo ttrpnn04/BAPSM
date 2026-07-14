@@ -29,9 +29,10 @@ public class CreateTransactionViewModel
     [Display(Name = "จำนวน (กระสอบ/ลัง/เส้น)")]
     public int QtyCases { get; set; }
 
+    [Required(ErrorMessage = "กรุณากรอกชื่อร้าน / เลขที่อ้างอิง")]
     [MaxLength(50)]
-    [Display(Name = "เลขที่อ้างอิง / ร้าน-ลูกค้า")]
-    public string? RefNo { get; set; }
+    [Display(Name = "ชื่อร้าน / เลขที่อ้างอิง")]
+    public string RefNo { get; set; } = string.Empty;
 
     [MaxLength(300)]
     [Display(Name = "หมายเหตุ")]

@@ -80,7 +80,7 @@
         <button type="button" class="btn btn-outline-primary btn-sm" id="addTxnLineBtn">
             <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
         </button>
-        <div class="form-text">เพิ่มได้หลายรายการ แล้วกดบันทึกครั้งเดียว</div>
+        <div class="form-text">กด Enter เพื่อเพิ่มรายการ แล้วกดบันทึกเมื่อเสร็จ</div>
     </div>
 
     <div class="table-responsive mb-3 d-none" id="txnLinesWrap">
@@ -99,9 +99,10 @@
     </div>
 
     <div class="mb-3">
-        <label class="form-label">เลขที่อ้างอิง / ร้าน-ลูกค้า</label>
-        <input type="text" name="RefNo" class="form-control" value="@Model.RefNo"
-               placeholder="เช่น ร้าน A, PO-001" maxlength="50" />
+        <label class="form-label">ชื่อร้าน / เลขที่อ้างอิง <span class="text-danger">*</span></label>
+        <input type="text" name="RefNo" id="txnRefNo" class="form-control" value="@Model.RefNo"
+               placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
+        <div class="invalid-feedback">กรุณากรอกชื่อร้าน / เลขที่อ้างอิง</div>
     </div>
 
     <div class="mb-4">
@@ -111,7 +112,7 @@
 
     <div class="d-flex gap-2 justify-content-end">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
-        <button type="submit" class="btn btn-primary" id="modalSubmitBtn">
+        <button type="button" class="btn btn-primary" id="modalSubmitBtn">
             <i class="bi bi-check-lg me-1"></i>บันทึก
         </button>
     </div>

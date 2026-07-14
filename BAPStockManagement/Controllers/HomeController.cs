@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using BAPStockManagement.Constants;
 using BAPStockManagement.ViewModels.Home;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -49,8 +50,8 @@ public class HomeController : Controller
             .ToList();
 
         var lowStockItems = productStockRows
-            .Where(r => r.QtyPieces > 0 && r.QtyPieces <= 10)
-            .OrderBy(r => r.QtyPieces)
+            .Where(r => StockThresholds.IsLowStock(r.QtyPieces, r.QtyCases))
+            .OrderBy(r => r.QtyPieces > 0 ? r.QtyPieces : r.QtyCases)
             .ThenBy(r => r.ProductName)
             .Take(8)
             .Select(r => new StockAlertItem
@@ -64,7 +65,7 @@ public class HomeController : Controller
             .ToList();
 
         var outOfStockItems = productStockRows
-            .Where(r => r.QtyPieces == 0 && r.QtyCases == 0)
+            .Where(r => StockThresholds.IsOutOfStock(r.QtyPieces, r.QtyCases))
             .OrderBy(r => r.ProductName)
             .Take(8)
             .Select(r => new StockAlertItem
@@ -151,8 +152,8 @@ public class HomeController : Controller
             ActiveVariantCount = productStockRows.Sum(r => r.VariantCount),
             TotalPieces = productStockRows.Sum(r => r.QtyPieces),
             TotalCases = productStockRows.Sum(r => r.QtyCases),
-            OutOfStockProductCount = productStockRows.Count(r => r.QtyPieces == 0 && r.QtyCases == 0),
-            LowStockProductCount = productStockRows.Count(r => r.QtyPieces > 0 && r.QtyPieces <= 10),
+            OutOfStockProductCount = productStockRows.Count(r => StockThresholds.IsOutOfStock(r.QtyPieces, r.QtyCases)),
+            LowStockProductCount = productStockRows.Count(r => StockThresholds.IsLowStock(r.QtyPieces, r.QtyCases)),
             MonthInPieces = monthTransactions?.InPieces ?? 0,
             MonthOutPieces = monthTransactions?.OutPieces ?? 0,
             MonthTransactionCount = monthTransactions?.Count ?? 0,

@@ -111,8 +111,8 @@ public class StockController : Controller
         var totalVariants = items.Sum(i => i.Colors.Count);
         var totalPieces = items.Sum(i => i.QtyPieces);
         var totalCases = items.Sum(i => i.QtyCases);
-        var outOfStockCount = items.Count(i => i.QtyPieces == 0 && i.QtyCases == 0);
-        var lowStockCount   = items.Count(i => i.QtyPieces > 0 && i.QtyPieces <= 10);
+        var outOfStockCount = items.Count(i => StockThresholds.IsOutOfStock(i.QtyPieces, i.QtyCases));
+        var lowStockCount = items.Count(i => StockThresholds.IsLowStock(i.QtyPieces, i.QtyCases));
 
         var totalPages = totalItems == 0 ? 1 : (int)Math.Ceiling((double)totalItems / pageSize);
         if (page > totalPages)
@@ -168,6 +168,7 @@ public class StockController : Controller
                         qtyCases    = v.StockBalance?.QtyCases  ?? 0
                     })
                     .OrderByDescending(v => v.qtyPieces)
+                    .ThenByDescending(v => v.qtyCases)
                     .ThenBy(v => v.variantName)
                     .ToList();
 
@@ -176,14 +177,15 @@ public class StockController : Controller
                     sku          = p.Sku,
                     productName  = p.ProductName,
                     categoryName = p.Category.CategoryName,
+                    unit         = p.Unit,
                     qtyPieces    = variants.Sum(v => v.qtyPieces),
                     qtyCases     = variants.Sum(v => v.qtyCases),
                     colors       = variants
                 };
             })
             .Where(r => alertType == "out"
-                ? r.qtyPieces == 0 && r.qtyCases == 0
-                : r.qtyPieces > 0 && r.qtyPieces <= 10)
+                ? StockThresholds.IsOutOfStock(r.qtyPieces, r.qtyCases)
+                : StockThresholds.IsLowStock(r.qtyPieces, r.qtyCases))
             .ToList();
 
         return Json(rows);

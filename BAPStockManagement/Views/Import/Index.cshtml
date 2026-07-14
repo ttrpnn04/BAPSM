@@ -5,13 +5,13 @@
 
 <div class="page-header">
     <div>
-        <h1>นำเข้าข้อมูลจาก Excel</h1>
-        <p class="subtitle">นำเข้าประวัติบิลรายวัน และตั้งยอดให้ตรงกับสต็อกคอลัมน์สุดท้าย</p>
+        <h1>ตั้งต้นสต็อกจาก Excel</h1>
+        <p class="subtitle">ใช้ตอน deploy / เริ่มใช้ระบบ — ตั้งยอดต้นจากสต็อกในไฟล์ แล้วเคลียร์ประวัติให้รายงานโล่ง</p>
     </div>
 </div>
 
 <div class="form-card mb-4">
-    <form asp-action="Index" method="post" enctype="multipart/form-data" class="row g-3">
+    <form asp-action="Index" method="post" enctype="multipart/form-data" class="row g-3" id="deployImportForm">
         @Html.AntiForgeryToken()
         <div class="col-12">
             <label asp-for="ExcelFile" class="form-label">ไฟล์ Excel (.xlsx)</label>
@@ -28,18 +28,36 @@
             </div>
         </div>
 
+        <div class="col-12">
+            <div class="alert alert-warning mb-2 py-2">
+                <div class="fw-semibold">คำเตือน</div>
+                <div class="small mb-0">
+                    การนำเข้าจะ<strong>ลบประวัติเข้า–ออกทั้งหมด</strong> แล้วตั้งยอดต้นจากคอลัมน์สต็อกใน Excel เท่านั้น
+                    (ไม่นำเข้าบิลรายวัน) จากนั้นให้บันทึกรายการต่อในระบบ
+                </div>
+            </div>
+            <div class="form-check">
+                <input asp-for="ConfirmResetHistory" class="form-check-input" />
+                <label asp-for="ConfirmResetHistory" class="form-check-label">
+                    ยืนยันว่าจะเคลียร์ประวัติทั้งหมด แล้วตั้งยอดต้นจากสต็อกใน Excel
+                </label>
+                <span asp-validation-for="ConfirmResetHistory" class="text-danger d-block"></span>
+            </div>
+        </div>
+
         <div class="col-12 d-flex gap-2">
-            <button type="submit" class="btn btn-primary">
-                <i class="bi bi-upload"></i>เริ่มนำเข้า
+            <button type="submit" class="btn btn-primary" id="deployImportBtn">
+                <i class="bi bi-upload"></i>ตั้งต้นจาก Excel
             </button>
         </div>
     </form>
 
     <div class="mt-3 small text-muted">
-        <div>ระบบอ่านหมวดหมู่จากหัวข้อในคอลัมน์ C และอ่านเดือน/ปีจากชื่อไฟล์แบบ MMYY เช่น 0769</div>
-        <div>คอลัมน์สต็อกขวาสุด = ยอดปัจจุบัน (ตั้งค่าแทนที่ ไม่บวกเพิ่ม)</div>
-        <div>ไฟล์ใหม่: นำเข้าประวัติบิล + ตั้งยอดล่าสุด / ไฟล์เดิมที่เคยนำเข้าแล้ว: ซิงก์ยอดล่าสุดอย่างเดียว ไม่ใส่บิลซ้ำ</div>
-        <div>สีใช้ชื่อตาม Excel 14 สี และยางใน COLUN/BLUE นับเป็นกระสอบ/ลัง/เส้น</div>
+        <div>ใช้ตอนตั้งต้นระบบ / deploy ไม่ใช่ซิงก์รายวัน</div>
+        <div>อ่านหมวดหมู่จากคอลัมน์ C และเดือน/ปีจากชื่อไฟล์แบบ MMYY เช่น 0769</div>
+        <div>ใช้บล็อกสต็อกขวาสุดที่มองเห็นในไฟล์ (ข้ามคอลัมน์ที่ถูกซ่อน)</div>
+        <div>ไม่นำเข้าประวัติบิล — เอาเฉพาะยอดสต็อกเป็นยอดต้น</div>
+        <div>สีใช้ชื่อตาม Excel และยางใน COLUN/BLUE นับเป็นกระสอบ/ลัง/เส้น</div>
     </div>
 </div>
 
@@ -91,18 +109,18 @@
         <div class="col-sm-6 col-lg-3">
             <div class="stat-card stat-info">
                 <div>
-                    <div class="stat-label">รายการบิลออก</div>
-                    <div class="stat-value">@Model.ImportedIssueTransactions</div>
+                    <div class="stat-label">รายการที่เคลียร์</div>
+                    <div class="stat-value">@Model.ClearedTransactions.ToString("N0")</div>
                 </div>
-                <div class="stat-icon"><i class="bi bi-arrow-up-circle"></i></div>
+                <div class="stat-icon"><i class="bi bi-trash"></i></div>
             </div>
         </div>
         <div class="col-sm-6 col-lg-3">
             <div class="stat-card stat-warning">
                 <div>
-                    <div class="stat-label">ยอดล่าสุด</div>
+                    <div class="stat-label">ยอดต้นที่ตั้ง</div>
                     <div class="stat-value">@Model.TotalPieces.ToString("N0") ชิ้น</div>
-                    <div class="small">@Model.TotalCases.ToString("N0") กระสอบ/ลัง/เส้น</div>
+                    <div class="small">@Model.TotalCases.ToString("N0") กระสอบ/ลัง/เส้น · @Model.OpeningTransactions.ToString("N0") รายการ</div>
                 </div>
                 <div class="stat-icon"><i class="bi bi-calculator"></i></div>
             </div>
@@ -118,12 +136,15 @@
                         <td>@string.Join(", ", Model.CategoryNames)</td>
                     </tr>
                     <tr>
-                        <th>ช่วงบิลที่นำเข้า</th>
+                        <th>วันที่ยอดต้น</th>
                         <td>
-                            บิล1–บิล@Model.BillDays
                             @if (Model.SnapshotDate.HasValue)
                             {
-                                <span>(ถึงวันที่ @Model.SnapshotDate.Value.ToString("dd/MM/yyyy"))</span>
+                                @Model.SnapshotDate.Value.ToString("dd/MM/yyyy")
+                            }
+                            else
+                            {
+                                <span>-</span>
                             }
                         </td>
                     </tr>
@@ -136,11 +157,11 @@
                         <td>@Model.CreatedVariants</td>
                     </tr>
                     <tr>
-                        <th>รายการปรับยอดเปิด</th>
-                        <td>@Model.AdjustmentTransactions</td>
+                        <th>รายการยอดต้น</th>
+                        <td>@Model.OpeningTransactions</td>
                     </tr>
                     <tr>
-                        <th>สินค้าไม่มีสต็อกที่ถูกข้าม transaction</th>
+                        <th>สินค้าไม่มีสต็อกที่ถูกข้าม</th>
                         <td>@Model.SkippedNoStockProducts</td>
                     </tr>
                     <tr>
@@ -155,4 +176,17 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('deployImportForm')?.addEventListener('submit', (e) => {
+            const confirm = document.getElementById('ConfirmResetHistory');
+            if (confirm && !confirm.checked) {
+                e.preventDefault();
+                confirm.focus();
+                return;
+            }
+            if (!window.confirm('ยืนยันตั้งต้นจาก Excel?\nระบบจะลบประวัติเข้า–ออกทั้งหมด แล้วตั้งยอดต้นใหม่จากไฟล์')) {
+                e.preventDefault();
+            }
+        });
+    </script>
 }

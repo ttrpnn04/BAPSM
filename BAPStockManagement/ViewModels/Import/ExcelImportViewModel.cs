@@ -8,7 +8,16 @@ public class ExcelImportViewModel
 
     public bool IncludeZeroStockProducts { get; set; } = true;
 
+    /// <summary>
+    /// ยืนยันว่าจะเคลียร์ประวัติธุรกรรมทั้งหมด แล้วตั้งยอดต้นจาก Excel
+    /// </summary>
+    public bool ConfirmResetHistory { get; set; }
+
     public bool HasResult { get; set; }
+
+    public int ClearedTransactions { get; set; }
+
+    public int OpeningTransactions { get; set; }
 
     public bool IsSuccess { get; set; }
 

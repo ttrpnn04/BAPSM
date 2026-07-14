@@ -872,6 +872,11 @@ public class TransactionsController : Controller
             ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้นหรือกระสอบ/ลัง/เส้นอย่างน้อย 1 รายการ");
         }
 
+        if (string.IsNullOrWhiteSpace(model.RefNo))
+        {
+            ModelState.AddModelError(nameof(model.RefNo), "กรุณากรอกชื่อร้าน / เลขที่อ้างอิง");
+        }
+
         if (!ModelState.IsValid)
         {
             if (isAjax)

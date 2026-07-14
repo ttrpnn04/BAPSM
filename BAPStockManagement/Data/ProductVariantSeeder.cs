@@ -284,7 +284,7 @@ public static class ProductVariantSeeder
                 product.ProductName);
         }
 
-        // ปิดสีที่ไม่อยู่ในรายการ Excel 14 สี เพื่อไม่ให้โผล่ซ้ำ
+        // ปิดสีที่ไม่อยู่ในรายการ Excel เพื่อไม่ให้โผล่ซ้ำ
         foreach (var unknownVariant in product.ProductVariants
             .Where(v => v.IsActive &&
                         v.VariantName != ProductVariantDefaults.StandardVariantName &&
@@ -297,39 +297,42 @@ public static class ProductVariantSeeder
                 product.ProductName);
         }
 
-        var maxSortOrder = product.ProductVariants.Any()
-            ? product.ProductVariants.Max(v => v.SortOrder)
-            : 0;
+        // ไม่สร้างสีว่างครบชุด — คงเฉพาะสีที่มีอยู่แล้ว และปิดสีที่ไม่มีสต็อก
+        // เมื่อสินค้ามีสีอื่นที่มีของอยู่แล้ว (กันชิปสี 0 เต็มแถว)
+        var hasStockedColor = product.ProductVariants.Any(v =>
+            v.VariantName != ProductVariantDefaults.StandardVariantName &&
+            ((v.StockBalance?.QtyPieces ?? 0) > 0 || (v.StockBalance?.QtyCases ?? 0) > 0));
 
         foreach (var colorName in ProductVariantDefaults.ColorNames)
         {
             var existingVariant = product.ProductVariants
                 .FirstOrDefault(v => v.VariantName == colorName);
 
-            if (existingVariant != null)
+            if (existingVariant == null)
             {
-                existingVariant.IsActive = true;
-                existingVariant.StockBalance ??= new StockBalance
-                {
-                    QtyPieces = 0,
-                    QtyCases = 0
-                };
                 continue;
             }
 
-            maxSortOrder++;
-            product.ProductVariants.Add(new ProductVariant
+            existingVariant.StockBalance ??= new StockBalance
             {
-                ProductId = product.ProductId,
-                VariantName = colorName,
-                SortOrder = maxSortOrder,
-                IsActive = true,
-                StockBalance = new StockBalance
-                {
-                    QtyPieces = 0,
-                    QtyCases = 0
-                }
-            });
+                QtyPieces = 0,
+                QtyCases = 0
+            };
+
+            var hasStock = (existingVariant.StockBalance.QtyPieces > 0) ||
+                           (existingVariant.StockBalance.QtyCases > 0);
+            if (hasStock)
+            {
+                existingVariant.IsActive = true;
+            }
+            else if (hasStockedColor && existingVariant.IsActive)
+            {
+                existingVariant.IsActive = false;
+                logger?.LogInformation(
+                    "ปิดใช้งานสีว่าง {VariantName} ของสินค้า {ProductName}",
+                    existingVariant.VariantName,
+                    product.ProductName);
+            }
         }
 
         return Task.CompletedTask;
