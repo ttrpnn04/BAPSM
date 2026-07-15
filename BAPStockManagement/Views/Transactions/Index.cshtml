@@ -49,30 +49,39 @@
         </div>
         <div class="col-md-3">
             <label class="form-label">ค้นหา</label>
-            <input type="text" name="search" value="@Model.Search" class="form-control"
-                   placeholder="ร้าน/เลขที่อ้างอิง, SKU, ชื่อสินค้า" />
+            <input type="search" name="search" value="@Model.Search" class="form-control" placeholder="ร้าน / SKU / สินค้า" />
         </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>ค้นหา</button>
-            <a asp-action="Index" class="btn btn-outline-secondary">ล้าง</a>
+        <div class="col-md-2">
+            <label class="form-label">ต่อหน้า</label>
+            <select name="pageSize" class="form-select">
+                @foreach (var size in new[] { 10, 25, 50 })
+                {
+                    if (Model.PageSize == size)
+                    {
+                        <option value="@size" selected>@size</option>
+                    }
+                    else
+                    {
+                        <option value="@size">@size</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-outline-secondary w-100">กรอง</button>
         </div>
     </form>
 </div>
 
-@if (!Model.Items.Any())
+@if (Model.Items.Count == 0)
 {
-    <div class="card-app">
-        <div class="empty-state">
-            <div class="empty-icon"><i class="bi bi-journal-x"></i></div>
-            <p class="mb-0">ไม่พบบิล</p>
-        </div>
-    </div>
+    <div class="alert alert-light border">ไม่พบรายการในช่วงที่เลือก</div>
 }
 else
 {
     <div class="table-card">
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
                         <th>วันที่</th>
@@ -109,9 +118,9 @@ else
                                 @(isOut ? "-" : "+")@item.TotalCases.ToString("N0")
                             </td>
                             <td><span class="text-muted small">@(item.CreatedBy ?? "-")</span></td>
-                            <td class="text-end">
+                            <td class="text-end text-nowrap">
                                 <a asp-action="Details" asp-route-id="@item.DocumentId" class="btn btn-sm btn-outline-primary">
-                                    ดูรายการ
+                                    ดู
                                 </a>
                             </td>
                         </tr>

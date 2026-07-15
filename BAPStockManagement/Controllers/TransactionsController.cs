@@ -208,6 +208,284 @@ public class TransactionsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = AppRoles.StockEdit)]
+    public async Task<IActionResult> Edit(long id)
+    {
+        var model = await BuildEditViewModelAsync(id);
+        if (model == null) return NotFound();
+
+        await PopulateCreateLookupsAsync();
+        return View(model);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.StockEdit)]
+    public async Task<IActionResult> EditModal(long id)
+    {
+        var model = await BuildEditViewModelAsync(id);
+        if (model == null) return NotFound();
+
+        await PopulateCreateLookupsAsync();
+        return PartialView("_EditModal", model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.StockEdit)]
+    public async Task<IActionResult> Edit(long id, EditTransactionDocumentViewModel model)
+    {
+        var isAjax = Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+        if (id != model.DocumentId)
+        {
+            return BadRequest();
+        }
+
+        var submittedLines = (model.Lines ?? [])
+            .Where(l => l.VariantId > 0 && (l.QtyPieces > 0 || l.QtyCases > 0))
+            .ToList();
+
+        if (submittedLines.Count == 0)
+        {
+            ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนอย่างน้อย 1 รายการ");
+        }
+
+        if (string.IsNullOrWhiteSpace(model.RefNo))
+        {
+            ModelState.AddModelError(nameof(model.RefNo), "กรุณากรอกชื่อร้าน / เลขที่อ้างอิง");
+        }
+
+        var document = await _context.StockDocuments
+            .Include(d => d.TransactionType)
+            .Include(d => d.StockTransactions)
+            .FirstOrDefaultAsync(d => d.DocumentId == id);
+
+        if (document == null)
+        {
+            return NotFound();
+        }
+
+        model.TypeName = document.TransactionType.TypeName;
+        model.Direction = document.TransactionType.Direction;
+        model.Lines = submittedLines;
+
+        async Task<IActionResult> FailEditAsync(string? message = null)
+        {
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                ModelState.AddModelError(string.Empty, message);
+            }
+
+            if (isAjax)
+            {
+                var msgs = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
+                return BadRequest(new { message = string.Join(" | ", msgs) });
+            }
+
+            await EnrichEditLinesForRedisplayAsync(model);
+            await PopulateCreateLookupsAsync();
+            return View(model);
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return await FailEditAsync();
+        }
+
+        var oldLines = document.StockTransactions.ToList();
+        var direction = document.TransactionType.Direction;
+
+        await using var dbTx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var affectedVariantIds = oldLines.Select(l => l.VariantId)
+                .Concat(submittedLines.Select(l => l.VariantId))
+                .Distinct()
+                .OrderBy(vid => vid)
+                .ToList();
+
+            var balances = await LockAndLoadBalancesAsync(affectedVariantIds);
+            if (balances == null)
+            {
+                await dbTx.RollbackAsync();
+                return await FailEditAsync("ไม่พบข้อมูลสต็อกของสินค้าที่เลือก");
+            }
+
+            var variantMeta = await LoadActiveVariantMetaAsync(
+                submittedLines.Select(l => l.VariantId).Distinct().ToList());
+            if (variantMeta == null)
+            {
+                await dbTx.RollbackAsync();
+                return await FailEditAsync("ไม่พบสินค้า/สีที่เลือก หรือถูกปิดใช้งาน");
+            }
+
+            foreach (var line in submittedLines)
+            {
+                if (!variantMeta.TryGetValue(line.VariantId, out var meta))
+                {
+                    await dbTx.RollbackAsync();
+                    return await FailEditAsync("ไม่พบสินค้า/สีที่เลือก หรือถูกปิดใช้งาน");
+                }
+
+                if (line.ProductId <= 0)
+                {
+                    line.ProductId = meta.ProductId;
+                }
+                else if (meta.ProductId != line.ProductId)
+                {
+                    await dbTx.RollbackAsync();
+                    return await FailEditAsync("สี/รุ่นไม่ตรงกับสินค้าที่เลือก");
+                }
+            }
+
+            var projected = CloneBalances(balances);
+            ApplyLedgerDelta(projected, oldLines.Select(l => (l.VariantId, l.QtyPieces, l.QtyCases)), -direction);
+            ApplyLedgerDelta(projected, submittedLines.Select(l => (l.VariantId, l.QtyPieces, l.QtyCases)), direction);
+
+            var labelMap = await LoadVariantMetaAnyAsync(affectedVariantIds);
+            foreach (var kv in variantMeta)
+            {
+                labelMap[kv.Key] = kv.Value;
+            }
+
+            var stockError = FindNegativeBalanceError(projected, labelMap);
+            if (stockError != null)
+            {
+                await dbTx.RollbackAsync();
+                return await FailEditAsync(stockError);
+            }
+
+            var refNo = model.RefNo.Trim();
+            var note = string.IsNullOrWhiteSpace(model.Note) ? null : model.Note.Trim();
+            var userId = _userManager.GetUserId(User);
+
+            document.TxnDate = model.TxnDate;
+            document.RefNo = refNo;
+            document.Note = note;
+
+            var keepIds = new HashSet<long>();
+            foreach (var submitted in submittedLines)
+            {
+                StockTransaction? existing = null;
+                if (submitted.TransactionId.HasValue && submitted.TransactionId.Value > 0)
+                {
+                    existing = oldLines.FirstOrDefault(l => l.TransactionId == submitted.TransactionId.Value);
+                }
+
+                if (existing != null)
+                {
+                    existing.VariantId = submitted.VariantId;
+                    existing.QtyPieces = submitted.QtyPieces;
+                    existing.QtyCases = submitted.QtyCases;
+                    existing.TxnDate = model.TxnDate;
+                    existing.RefNo = refNo;
+                    existing.Note = note;
+                    existing.TransactionTypeId = document.TransactionTypeId;
+                    keepIds.Add(existing.TransactionId);
+                }
+                else
+                {
+                    _context.StockTransactions.Add(new StockTransaction
+                    {
+                        DocumentId = document.DocumentId,
+                        VariantId = submitted.VariantId,
+                        TransactionTypeId = document.TransactionTypeId,
+                        TxnDate = model.TxnDate,
+                        QtyPieces = submitted.QtyPieces,
+                        QtyCases = submitted.QtyCases,
+                        RefNo = refNo,
+                        Note = note,
+                        CreatedBy = userId
+                    });
+                }
+            }
+
+            foreach (var old in oldLines.Where(l => !keepIds.Contains(l.TransactionId)))
+            {
+                _context.StockTransactions.Remove(old);
+            }
+
+            await _context.SaveChangesAsync();
+            await dbTx.CommitAsync();
+
+            if (isAjax)
+            {
+                return Ok(new { success = true, documentId = document.DocumentId });
+            }
+
+            TempData["Success"] = "แก้ไขบิลสำเร็จ และปรับยอดสต็อกแล้ว";
+            return RedirectToAction(nameof(Details), new { id = document.DocumentId });
+        }
+        catch
+        {
+            await dbTx.RollbackAsync();
+            throw;
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.StockEdit)]
+    public async Task<IActionResult> Delete(long id)
+    {
+        var document = await _context.StockDocuments
+            .Include(d => d.TransactionType)
+            .Include(d => d.StockTransactions)
+            .FirstOrDefaultAsync(d => d.DocumentId == id);
+
+        if (document == null)
+        {
+            return NotFound();
+        }
+
+        var oldLines = document.StockTransactions.ToList();
+        var direction = document.TransactionType.Direction;
+
+        await using var dbTx = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var affectedVariantIds = oldLines
+                .Select(l => l.VariantId)
+                .Distinct()
+                .OrderBy(vid => vid)
+                .ToList();
+
+            var balances = await LockAndLoadBalancesAsync(affectedVariantIds);
+            if (balances == null)
+            {
+                await dbTx.RollbackAsync();
+                TempData["Error"] = "ไม่พบข้อมูลสต็อกของสินค้าในบิลนี้";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var variantMeta = await LoadVariantMetaAnyAsync(affectedVariantIds);
+            var projected = CloneBalances(balances);
+            ApplyLedgerDelta(projected, oldLines.Select(l => (l.VariantId, l.QtyPieces, l.QtyCases)), -direction);
+
+            var stockError = FindNegativeBalanceError(projected, variantMeta);
+            if (stockError != null)
+            {
+                await dbTx.RollbackAsync();
+                TempData["Error"] = $"ลบไม่ได้: {stockError}";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            _context.StockTransactions.RemoveRange(oldLines);
+            _context.StockDocuments.Remove(document);
+            await _context.SaveChangesAsync();
+            await dbTx.CommitAsync();
+
+            TempData["Success"] = "ลบบิลสำเร็จ และคืนยอดสต็อกแล้ว";
+            return RedirectToAction(nameof(Index));
+        }
+        catch
+        {
+            await dbTx.RollbackAsync();
+            throw;
+        }
+    }
+
+    [HttpGet]
     public async Task<IActionResult> ExportDailyReport(DateTime? fromDate, DateTime? toDate)
     {
         var from = DateOnly.FromDateTime((fromDate ?? DateTime.Today).Date);
@@ -1116,5 +1394,202 @@ public class TransactionsController : Controller
 
         ViewBag.TransactionTypes = new SelectList(types, "TransactionTypeId", "TypeName");
         ViewBag.TransactionTypesList = types;
+    }
+
+    private async Task EnrichEditLinesForRedisplayAsync(EditTransactionDocumentViewModel model)
+    {
+        var variantIds = model.Lines
+            .Where(l => l.VariantId > 0)
+            .Select(l => l.VariantId)
+            .Distinct()
+            .ToList();
+
+        if (variantIds.Count == 0) return;
+
+        var meta = await _context.ProductVariants
+            .AsNoTracking()
+            .Include(v => v.Product)
+            .Where(v => variantIds.Contains(v.VariantId))
+            .Select(v => new
+            {
+                v.VariantId,
+                v.ProductId,
+                v.Product.Sku,
+                v.Product.ProductName,
+                v.VariantName,
+                v.Product.Unit
+            })
+            .ToDictionaryAsync(v => v.VariantId);
+
+        foreach (var line in model.Lines)
+        {
+            if (!meta.TryGetValue(line.VariantId, out var info)) continue;
+            line.ProductId = info.ProductId;
+            line.Sku = info.Sku;
+            line.ProductName = info.ProductName;
+            line.VariantName = info.VariantName;
+            line.Unit = info.Unit;
+        }
+    }
+
+    private async Task<EditTransactionDocumentViewModel?> BuildEditViewModelAsync(long id)
+    {
+        var document = await _context.StockDocuments
+            .AsNoTracking()
+            .Include(d => d.TransactionType)
+            .Include(d => d.StockTransactions)
+                .ThenInclude(t => t.Variant)
+                    .ThenInclude(v => v.Product)
+            .FirstOrDefaultAsync(d => d.DocumentId == id);
+
+        if (document == null) return null;
+
+        return new EditTransactionDocumentViewModel
+        {
+            DocumentId = document.DocumentId,
+            TypeName = document.TransactionType.TypeName,
+            Direction = document.TransactionType.Direction,
+            TxnDate = document.TxnDate,
+            RefNo = document.RefNo ?? string.Empty,
+            Note = document.Note,
+            Lines = document.StockTransactions
+                .OrderBy(t => t.Variant.Product.Sku)
+                .ThenBy(t => t.Variant.VariantName)
+                .ThenBy(t => t.TransactionId)
+                .Select(t => new EditTransactionLineViewModel
+                {
+                    TransactionId = t.TransactionId,
+                    ProductId = t.Variant.ProductId,
+                    VariantId = t.VariantId,
+                    QtyPieces = t.QtyPieces,
+                    QtyCases = t.QtyCases,
+                    Sku = t.Variant.Product.Sku,
+                    ProductName = t.Variant.Product.ProductName,
+                    VariantName = t.Variant.VariantName,
+                    Unit = t.Variant.Product.Unit
+                })
+                .ToList()
+        };
+    }
+
+    private async Task<Dictionary<int, (int Pieces, int Cases)>?> LockAndLoadBalancesAsync(IReadOnlyList<int> variantIds)
+    {
+        var result = new Dictionary<int, (int Pieces, int Cases)>();
+        foreach (var variantId in variantIds)
+        {
+            await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                UPDATE StockBalances WITH (UPDLOCK, ROWLOCK)
+                SET LastUpdated = LastUpdated
+                WHERE VariantID = {variantId}");
+
+            var balance = await _context.StockBalances
+                .AsNoTracking()
+                .FirstOrDefaultAsync(b => b.VariantId == variantId);
+
+            // Missing balance row: treat as zero after ensuring variant exists
+            if (balance == null)
+            {
+                var exists = await _context.ProductVariants.AnyAsync(v => v.VariantId == variantId);
+                if (!exists) return null;
+                result[variantId] = (0, 0);
+            }
+            else
+            {
+                result[variantId] = (balance.QtyPieces, balance.QtyCases);
+            }
+        }
+
+        return result;
+    }
+
+    private async Task<Dictionary<int, (int ProductId, string Label)>?> LoadActiveVariantMetaAsync(IReadOnlyList<int> variantIds)
+    {
+        if (variantIds.Count == 0)
+        {
+            return new Dictionary<int, (int ProductId, string Label)>();
+        }
+
+        var rows = await _context.ProductVariants
+            .AsNoTracking()
+            .Include(v => v.Product)
+                .ThenInclude(p => p.Category)
+            .Where(v =>
+                variantIds.Contains(v.VariantId) &&
+                v.IsActive &&
+                v.Product.IsActive &&
+                v.Product.Category.IsActive)
+            .Select(v => new
+            {
+                v.VariantId,
+                v.ProductId,
+                Label = v.Product.Sku + " / " + v.VariantName
+            })
+            .ToListAsync();
+
+        if (rows.Count != variantIds.Count)
+        {
+            return null;
+        }
+
+        return rows.ToDictionary(r => r.VariantId, r => (r.ProductId, r.Label));
+    }
+
+    private async Task<Dictionary<int, (int ProductId, string Label)>> LoadVariantMetaAnyAsync(IReadOnlyList<int> variantIds)
+    {
+        if (variantIds.Count == 0)
+        {
+            return new Dictionary<int, (int ProductId, string Label)>();
+        }
+
+        var rows = await _context.ProductVariants
+            .AsNoTracking()
+            .Include(v => v.Product)
+            .Where(v => variantIds.Contains(v.VariantId))
+            .Select(v => new
+            {
+                v.VariantId,
+                v.ProductId,
+                Label = v.Product.Sku + " / " + v.VariantName
+            })
+            .ToListAsync();
+
+        return rows.ToDictionary(r => r.VariantId, r => (r.ProductId, r.Label));
+    }
+
+    private static Dictionary<int, (int Pieces, int Cases)> CloneBalances(
+        Dictionary<int, (int Pieces, int Cases)> source)
+    {
+        return source.ToDictionary(kv => kv.Key, kv => kv.Value);
+    }
+
+    private static void ApplyLedgerDelta(
+        Dictionary<int, (int Pieces, int Cases)> balances,
+        IEnumerable<(int VariantId, int QtyPieces, int QtyCases)> lines,
+        int signedDirection)
+    {
+        foreach (var line in lines)
+        {
+            balances.TryGetValue(line.VariantId, out var current);
+            balances[line.VariantId] = (
+                current.Pieces + (line.QtyPieces * signedDirection),
+                current.Cases + (line.QtyCases * signedDirection));
+        }
+    }
+
+    private static string? FindNegativeBalanceError(
+        Dictionary<int, (int Pieces, int Cases)> projected,
+        Dictionary<int, (int ProductId, string Label)> labels)
+    {
+        foreach (var (variantId, qty) in projected)
+        {
+            if (qty.Pieces >= 0 && qty.Cases >= 0) continue;
+
+            var label = labels.TryGetValue(variantId, out var meta)
+                ? meta.Label
+                : $"Variant #{variantId}";
+            return $"สต็อกจะติดลบหลังบันทึก: {label} (เหลือ {qty.Pieces:N0} ชิ้น, {qty.Cases:N0} กระสอบ/ลัง/เส้น)";
+        }
+
+        return null;
     }
 }

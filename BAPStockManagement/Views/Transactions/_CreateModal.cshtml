@@ -62,8 +62,9 @@
 
     <div class="mb-3">
         <label class="form-label fw-medium">วันที่ <span class="text-danger">*</span></label>
-        <input type="text" name="TxnDate" class="form-control" value="@Model.TxnDate.ToString("dd/MM/yyyy")"
-               placeholder="วัน/เดือน/ปี" inputmode="numeric" />
+        <input type="text" name="TxnDate" class="form-control js-datepicker"
+               value="@Model.TxnDate.ToString("yyyy-MM-dd")"
+               placeholder="เลือกวันที่" autocomplete="off" />
     </div>
 
     <div class="mb-3">

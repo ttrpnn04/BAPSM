@@ -1,0 +1,124 @@
+@model BAPStockManagement.ViewModels.Stock.EditTransactionDocumentViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    var isOut = Model.Direction < 0;
+    var initialLinesJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.Lines.Select(l => new
+        {
+            transactionId = l.TransactionId,
+            productId = l.ProductId,
+            variantId = l.VariantId,
+            sku = l.Sku ?? "",
+            label = l.VariantName ?? "",
+            qtyPieces = l.QtyPieces,
+            qtyCases = l.QtyCases,
+            unit = l.Unit ?? ""
+        }));
+}
+
+<form id="editTxnForm" method="post" data-document-id="@Model.DocumentId" data-direction="@Model.Direction">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="DocumentId" />
+
+    <div id="editModalAlert" class="alert alert-danger d-none py-2 mb-3" role="alert"></div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">ประเภทรายการ</label>
+        <div>
+            <span class="badge @(isOut ? "bg-danger" : "bg-success")">@Model.TypeName</span>
+            <span class="text-muted small ms-2">เปลี่ยนประเภทบิลไม่ได้</span>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">สินค้า</label>
+        <input type="search" id="editProductSearch" class="form-control form-control-sm mb-2"
+               placeholder="ค้นหาสินค้า..." autocomplete="off" />
+        <select id="editProductSelect" class="form-select"
+                asp-items="@((IEnumerable<SelectListItem>)ViewBag.Products)">
+            <option value="">-- เลือกสินค้า --</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium" id="editVariantFieldLabel">สี/รุ่น <span class="text-danger">*</span></label>
+        <input type="hidden" id="editVariantHidden" value="" />
+        <div id="editVariantChips" class="variant-chip-grid">
+            <span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>
+        </div>
+        <div id="editVariantData" hidden>
+            @foreach (var v in ViewBag.Variants)
+            {
+                <span data-variant-id="@v.VariantId"
+                      data-product-id="@v.ProductId"
+                      data-sku="@v.Sku"
+                      data-unit="@v.Unit"
+                      data-qty-pieces="@v.QtyPieces"
+                      data-qty-cases="@v.QtyCases"
+                      data-label="@v.Label"></span>
+            }
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium">วันที่ <span class="text-danger">*</span></label>
+        <input asp-for="TxnDate" class="form-control js-datepicker" type="text"
+               value="@Model.TxnDate.ToString("yyyy-MM-dd")"
+               placeholder="เลือกวันที่" autocomplete="off" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label fw-medium" id="editQtyFieldLabel">จำนวน</label>
+        <input type="text" id="editQtyValue" class="form-control qty-input" inputmode="numeric"
+               autocomplete="off" placeholder="กรอกจำนวน" />
+        <div class="form-text" id="editQtyFieldHint">ระบบจะแยกเป็นชิ้น หรือ กระสอบ/ลัง/เส้น ให้อัตโนมัติตามสินค้าที่เลือก</div>
+    </div>
+
+    <div class="mb-3">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="editAddLineBtn">
+            <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
+        </button>
+        <div class="form-text">กด Enter เพื่อเพิ่มรายการ แล้วกดบันทึกเมื่อเสร็จ</div>
+    </div>
+
+    <div class="table-responsive mb-3" id="editTxnLinesWrap">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>รหัสสินค้า</th>
+                    <th>สี/หน่วย</th>
+                    <th class="text-end">จำนวน</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody id="editTxnLinesBody"></tbody>
+        </table>
+        <div id="editTxnLinesInputs"></div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">ชื่อร้าน / เลขที่อ้างอิง <span class="text-danger">*</span></label>
+        <input asp-for="RefNo" class="form-control" id="editTxnRefNo"
+               placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label">หมายเหตุ</label>
+        <textarea asp-for="Note" class="form-control" rows="2" maxlength="300"></textarea>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <button type="button" class="btn btn-outline-danger btn-sm" id="editModalDeleteBtn"
+                data-delete-url="@Url.Action("Delete", "Transactions", new { id = Model.DocumentId })">
+            <i class="bi bi-trash me-1"></i>ลบบิล
+        </button>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="button" class="btn btn-primary" id="editModalSubmitBtn">
+                <i class="bi bi-check-lg me-1"></i>บันทึก
+            </button>
+        </div>
+    </div>
+</form>
+
+<script type="application/json" id="editInitialLinesJson">@Html.Raw(initialLinesJson)</script>

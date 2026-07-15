@@ -144,6 +144,7 @@
     });
   }
 
+  window.initThaiDatePickers = initThaiDatePickers;
   initThaiDatePickers(document);
 
   /* ── Auto-submit filter bars ── */

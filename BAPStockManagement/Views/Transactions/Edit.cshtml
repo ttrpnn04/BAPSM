@@ -1,38 +1,90 @@
-@model BAPStockManagement.ViewModels.Stock.CreateTransactionViewModel
+@model BAPStockManagement.ViewModels.Stock.EditTransactionDocumentViewModel
 @{
-    ViewData["Title"] = "บันทึกรายการสต็อก";
+    ViewData["Title"] = "แก้ไขบิล";
+    var isOut = Model.Direction < 0;
+    var initialLinesJson = System.Text.Json.JsonSerializer.Serialize(
+        Model.Lines.Select(l => new
+        {
+            transactionId = l.TransactionId,
+            productId = l.ProductId,
+            variantId = l.VariantId,
+            sku = l.Sku ?? "",
+            label = l.VariantName ?? "",
+            qtyPieces = l.QtyPieces,
+            qtyCases = l.QtyCases,
+            unit = l.Unit ?? ""
+        }));
 }
 
 <div class="page-header">
     <div>
-        <h1>บันทึกรายการสต็อก</h1>
-        <p class="subtitle">รับเข้า หรือ จ่ายออกสินค้า</p>
+        <h1>แก้ไขบิล</h1>
+        <p class="subtitle">
+            <span class="badge @(isOut ? "bg-danger" : "bg-success")">@Model.TypeName</span>
+            · เปลี่ยนสินค้า / สี / จำนวน · เพิ่มหรือลบบรรทัดได้
+        </p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Details" asp-route-id="@Model.DocumentId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>ยกเลิก
+        </a>
     </div>
 </div>
 
 <div class="row">
-    <div class="col-lg-7">
+    <div class="col-lg-8">
         <div class="form-card">
-            <form asp-action="Create" method="post" id="createTxnForm">
+            <form asp-action="Edit" asp-route-id="@Model.DocumentId" method="post" id="editTxnForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="DocumentId" />
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2" role="alert"></div>
 
                 <div class="mb-3">
-                    <label asp-for="ProductId" class="form-label"></label>
+                    <label class="form-label">ประเภทรายการ</label>
+                    <div>
+                        <span class="badge @(isOut ? "bg-danger" : "bg-success") fs-6">@Model.TypeName</span>
+                        <span class="text-muted small ms-2">ไม่สามารถเปลี่ยนประเภทบิลได้</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="TxnDate" class="form-label"></label>
+                    <input asp-for="TxnDate" class="form-control js-datepicker" type="text"
+                           value="@Model.TxnDate.ToString("yyyy-MM-dd")"
+                           placeholder="เลือกวันที่" autocomplete="off" />
+                    <span asp-validation-for="TxnDate" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="RefNo" class="form-label"></label> <span class="text-danger">*</span>
+                    <input asp-for="RefNo" class="form-control" placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
+                    <span asp-validation-for="RefNo" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Note" class="form-label"></label>
+                    <textarea asp-for="Note" class="form-control" rows="2" maxlength="300"></textarea>
+                    <span asp-validation-for="Note" class="text-danger small"></span>
+                </div>
+
+                <hr class="my-4" />
+                <h2 class="h6 mb-3">รายการในบิล</h2>
+
+                <div class="mb-3">
+                    <label class="form-label">สินค้า</label>
                     <input type="search" id="productSearch" class="form-control form-control-sm mb-2"
                            placeholder="ค้นหาสินค้า..." autocomplete="off" />
-                    <select asp-for="ProductId" asp-items="ViewBag.Products" class="form-select" id="productSelect">
+                    <select id="productSelect" class="form-select" asp-items="ViewBag.Products">
                         <option value="">-- เลือกสินค้า --</option>
                     </select>
-                    <span asp-validation-for="ProductId" class="text-danger small"></span>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label" id="variantFieldLabel">สี/รุ่น <span class="text-danger">*</span></label>
-                    <input type="hidden" asp-for="VariantId" id="variantHidden" />
+                    <input type="hidden" id="variantHidden" value="" />
                     <div id="variantChips" class="variant-chip-grid">
                         <span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>
                     </div>
-                    @* เก็บข้อมูล variants ทั้งหมดไว้ใน data attribute *@
                     <div id="variantData" hidden>
                         @foreach (var variant in ViewBag.Variants)
                         {
@@ -45,51 +97,12 @@
                                   data-label="@variant.Label"></span>
                         }
                     </div>
-                    <span asp-validation-for="VariantId" class="text-danger small"></span>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">ประเภทรายการ <span class="text-danger">*</span></label>
-                    <div class="txn-type-group" role="group">
-                        @{
-                            var transactionTypes = ((IEnumerable<BAPStockManagement.Models.TransactionType>)ViewBag.TransactionTypesList).ToList();
-                        }
-                        @for (var i = 0; i < transactionTypes.Count; i++)
-                        {
-                            var type      = transactionTypes[i];
-                            var isIn      = type.Direction > 0;
-                            var isChecked = Model.TransactionTypeId == type.TransactionTypeId;
-                            var sameDirectionIndex = transactionTypes.Take(i).Count(t => t.Direction == type.Direction);
-                            var typeLabel = isIn
-                                ? (sameDirectionIndex == 0 ? "รับสต็อกเข้า" : "ปรับยอดเพิ่ม")
-                                : (sameDirectionIndex == 0 ? "ขายออก" : "ปรับยอดลง");
-                            <label class="txn-type-pill @(isIn ? "txn-type-pill--in" : "txn-type-pill--out") @(isChecked ? "is-checked" : "")">
-                                <input type="radio" name="TransactionTypeId" value="@type.TransactionTypeId"
-                                       data-direction="@type.Direction"
-                                       @(isChecked ? "checked" : "") />
-                                <i class="bi @(isIn ? "bi-arrow-down-circle" : "bi-arrow-up-circle")"></i>
-                                @typeLabel
-                            </label>
-                        }
-                    </div>
-                    <span asp-validation-for="TransactionTypeId" class="text-danger small"></span>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="TxnDate" class="form-label"></label>
-                    <input asp-for="TxnDate" class="form-control js-datepicker" type="text"
-                           value="@Model.TxnDate.ToString("yyyy-MM-dd")"
-                           placeholder="เลือกวันที่" autocomplete="off" />
-                    <span asp-validation-for="TxnDate" class="text-danger small"></span>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label" id="qtyFieldLabel">จำนวน</label>
                     <input id="QtyValue" class="form-control qty-input" type="text"
-                           inputmode="numeric" autocomplete="off" placeholder="กรอกจำนวน"
-                           value="@(Model.QtyPieces > 0 ? Model.QtyPieces.ToString() : (Model.QtyCases > 0 ? Model.QtyCases.ToString() : null))" />
-                    <input type="hidden" name="QtyPieces" id="QtyPieces" value="@(Model.QtyPieces > 0 ? Model.QtyPieces.ToString() : "0")" />
-                    <input type="hidden" name="QtyCases" id="QtyCases" value="@(Model.QtyCases > 0 ? Model.QtyCases.ToString() : "0")" />
+                           inputmode="numeric" autocomplete="off" placeholder="กรอกจำนวน" />
                     <div class="form-text" id="qtyFieldHint">ระบบจะแยกเป็นชิ้น หรือ กระสอบ/ลัง/เส้น ให้อัตโนมัติตามสินค้าที่เลือก</div>
                 </div>
 
@@ -97,10 +110,9 @@
                     <button type="button" class="btn btn-outline-primary btn-sm" id="addTxnLineBtn">
                         <i class="bi bi-plus-circle me-1"></i>เพิ่มรายการ
                     </button>
-                    <div class="form-text">กด Enter เพื่อเพิ่มรายการ แล้วกดบันทึกเมื่อเสร็จ</div>
                 </div>
 
-                <div class="table-responsive mb-3 d-none" id="txnLinesWrap">
+                <div class="table-responsive mb-3" id="txnLinesWrap">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                             <tr>
@@ -115,24 +127,22 @@
                     <div id="txnLinesInputs"></div>
                 </div>
 
-                <div class="mb-3">
-                    <label asp-for="RefNo" class="form-label"></label> <span class="text-danger">*</span>
-                    <input asp-for="RefNo" class="form-control" placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
-                    <span asp-validation-for="RefNo" class="text-danger small"></span>
+                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary" id="editSubmitBtn">
+                            <i class="bi bi-check-lg me-1"></i>บันทึกการแก้ไข
+                        </button>
+                        <a asp-action="Details" asp-route-id="@Model.DocumentId" class="btn btn-outline-secondary">ยกเลิก</a>
+                    </div>
                 </div>
+            </form>
 
-                <div class="mb-4">
-                    <label asp-for="Note" class="form-label"></label>
-                    <textarea asp-for="Note" class="form-control" rows="2"></textarea>
-                    <span asp-validation-for="Note" class="text-danger small"></span>
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="button" class="btn btn-primary" id="createSubmitBtn">
-                        <i class="bi bi-check-lg me-1"></i>บันทึก
-                    </button>
-                    <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
-                </div>
+            <form asp-action="Delete" asp-route-id="@Model.DocumentId" method="post" class="mt-4 pt-3 border-top"
+                  onsubmit="return confirm('ยืนยันลบบิลนี้ทั้งหมด? ระบบจะคืนยอดสต็อกของบิลนี้');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-trash me-1"></i>ลบบิลทั้งใบ
+                </button>
             </form>
         </div>
     </div>
@@ -142,7 +152,9 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
     (() => {
-        /* ── color palette (same as stock page) ── */
+        const billDirection = @Model.Direction;
+        const initialLines = @Html.Raw(initialLinesJson);
+
         const palette = [
             { keys: ['ดำ'],                      bg: '#1e293b', text: '#f8fafc', dot: '#94a3b8' },
             { keys: ['แดง'],                     bg: '#fee2e2', text: '#991b1b', dot: '#ef4444' },
@@ -166,27 +178,23 @@
             return { bg: '#f4f4f5', text: '#52525b', dot: '#94a3b8' };
         }
 
-        /* ── elements ── */
-        const form           = document.getElementById('createTxnForm');
+        const form           = document.getElementById('editTxnForm');
         const productSelect  = document.getElementById('productSelect');
         const productSearch  = document.getElementById('productSearch');
         const variantChips   = document.getElementById('variantChips');
         const variantHidden  = document.getElementById('variantHidden');
         const variantDataEl  = document.getElementById('variantData');
         const qtyValueInput  = document.getElementById('QtyValue');
-        const qtyPiecesInput = document.getElementById('QtyPieces');
-        const qtyCasesInput  = document.getElementById('QtyCases');
         const qtyFieldLabel  = document.getElementById('qtyFieldLabel');
         const qtyFieldHint   = document.getElementById('qtyFieldHint');
         const addLineBtn     = document.getElementById('addTxnLineBtn');
         const linesWrap      = document.getElementById('txnLinesWrap');
         const linesBody      = document.getElementById('txnLinesBody');
         const linesInputs    = document.getElementById('txnLinesInputs');
+        const variantFieldLabel = document.getElementById('variantFieldLabel');
 
-        if (!form || !productSelect || !productSearch || !variantChips || !variantHidden || !variantDataEl ||
-            !qtyValueInput || !qtyPiecesInput || !qtyCasesInput || !addLineBtn || !linesWrap || !linesBody || !linesInputs) return;
+        if (!form || !productSelect || !variantDataEl) return;
 
-        /* read all variants from DOM data */
         const allVariants = Array.from(variantDataEl.querySelectorAll('[data-variant-id]'))
             .map(el => ({
                 variantId: el.dataset.variantId,
@@ -198,9 +206,16 @@
                 label:     el.dataset.label,
             }));
 
-        const initialVariantId = variantHidden.value;
-        const txnLines = [];
-        const variantFieldLabel = document.getElementById('variantFieldLabel');
+        const txnLines = (initialLines || []).map(l => ({
+            transactionId: l.transactionId || null,
+            productId: String(l.productId),
+            variantId: String(l.variantId),
+            sku: l.sku,
+            label: l.label,
+            qtyPieces: l.qtyPieces || 0,
+            qtyCases: l.qtyCases || 0,
+            unit: l.unit || ''
+        }));
 
         const productOptions = Array.from(productSelect.options).map(option => ({
             option,
@@ -215,9 +230,13 @@
             });
         }
 
-        function currentDirection() {
-            const checkedType = form.querySelector('input[name="TransactionTypeId"]:checked');
-            return Number.parseInt(checkedType?.dataset.direction || '0', 10);
+        function isCaseUnit(unit) {
+            const value = unit || '';
+            return value.includes('ลัง') || value.includes('กระสอบ') || value.includes('เส้น');
+        }
+
+        function isCaseVariant(variant) {
+            return !!variant && isCaseUnit(variant.unit);
         }
 
         function stockLabel(v) {
@@ -228,18 +247,36 @@
             return `${v.qtyPieces.toLocaleString()} ชิ้น`;
         }
 
+        function updateQtyFieldForVariant(variant) {
+            const caseItem = isCaseVariant(variant);
+            if (qtyFieldLabel) {
+                qtyFieldLabel.textContent = caseItem ? 'จำนวน (กระสอบ/ลัง/เส้น)' : 'จำนวน (ชิ้น)';
+            }
+            if (qtyFieldHint) {
+                qtyFieldHint.textContent = caseItem
+                    ? 'สินค้านี้บันทึกเป็นกระสอบ/ลัง/เส้น'
+                    : 'สินค้านี้บันทึกเป็นชิ้น';
+            }
+            qtyValueInput.placeholder = caseItem ? 'กรอกจำนวนกระสอบ/ลัง/เส้น' : 'กรอกจำนวนชิ้น';
+        }
+
+        function selectVariant(btn, id) {
+            variantChips.querySelectorAll('.variant-chip-btn').forEach(b => b.classList.remove('is-selected'));
+            btn.classList.add('is-selected');
+            variantHidden.value = id;
+            updateQtyFieldForVariant(allVariants.find(v => v.variantId === id));
+        }
+
         function buildChips(productId) {
-            const direction = currentDirection();
-            const isSale = direction < 0;
+            const isSale = billDirection < 0;
             const filtered = allVariants.filter(v =>
                 v.productId === productId &&
-                (!isSale || v.qtyPieces > 0 || v.qtyCases > 0)
+                (!isSale || v.qtyPieces > 0 || v.qtyCases > 0 || txnLines.some(l => l.variantId === v.variantId))
             );
             variantChips.innerHTML = '';
             variantHidden.value = '';
 
-            const caseOnly = filtered.length > 0 &&
-                filtered.every(v => isCaseUnit(v.unit));
+            const caseOnly = filtered.length > 0 && filtered.every(v => isCaseUnit(v.unit));
             if (variantFieldLabel) {
                 variantFieldLabel.innerHTML = caseOnly
                     ? 'หน่วย <span class="text-danger">*</span>'
@@ -248,9 +285,7 @@
 
             if (!filtered.length) {
                 variantChips.innerHTML = productId
-                    ? (isSale
-                        ? '<span class="text-muted small fst-italic">ไม่มีสต็อกให้เบิกออก</span>'
-                        : '<span class="text-muted small fst-italic">ไม่พบหน่วยสินค้า</span>')
+                    ? '<span class="text-muted small fst-italic">ไม่พบหน่วยสินค้า</span>'
                     : '<span class="text-muted small fst-italic">เลือกสินค้าก่อน</span>';
                 return;
             }
@@ -289,9 +324,7 @@
                 variantChips.appendChild(btn);
             });
 
-            // สินค้าหน่วยลัง/มีรุ่นเดียว เลือกให้อัตโนมัติ ไม่ต้องมีสี
-            const preferred = filtered.find(v => v.variantId === initialVariantId) ||
-                (caseOnly ? filtered.find(v => v.label === 'มาตรฐาน') : null) ||
+            const preferred = (caseOnly ? filtered.find(v => v.label === 'มาตรฐาน') : null) ||
                 (filtered.length === 1 ? filtered[0] : null) ||
                 filtered.find(v => v.label === 'มาตรฐาน') ||
                 filtered[0];
@@ -301,45 +334,9 @@
             }
         }
 
-        function isCaseUnit(unit) {
-            const value = unit || '';
-            return value.includes('ลัง') || value.includes('กระสอบ') || value.includes('เส้น');
-        }
-
-        function isCaseVariant(variant) {
-            return !!variant && isCaseUnit(variant.unit);
-        }
-
-        function updateQtyFieldForVariant(variant) {
-            const caseItem = isCaseVariant(variant);
-            if (qtyFieldLabel) {
-                qtyFieldLabel.textContent = caseItem ? 'จำนวน (กระสอบ/ลัง/เส้น)' : 'จำนวน (ชิ้น)';
-            }
-            if (qtyFieldHint) {
-                qtyFieldHint.textContent = caseItem
-                    ? 'สินค้านี้บันทึกเป็นกระสอบ/ลัง/เส้น'
-                    : 'สินค้านี้บันทึกเป็นชิ้น';
-            }
-            qtyValueInput.placeholder = caseItem ? 'กรอกจำนวนกระสอบ/ลัง/เส้น' : 'กรอกจำนวนชิ้น';
-        }
-
-        function selectVariant(btn, id) {
-            variantChips.querySelectorAll('.variant-chip-btn').forEach(b => b.classList.remove('is-selected'));
-            btn.classList.add('is-selected');
-            variantHidden.value = id;
-            updateQtyFieldForVariant(allVariants.find(v => v.variantId === id));
-        }
-
         function sanitizeQtyInput(input) {
             const sanitized = input.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
             if (input.value !== sanitized) input.value = sanitized;
-        }
-
-        function bindQtyInput(input) {
-            input.addEventListener('input', () => sanitizeQtyInput(input));
-            input.addEventListener('focus', () => {
-                if (input.value === '0') input.value = '';
-            });
         }
 
         function readQty(input) {
@@ -354,14 +351,10 @@
             return { qtyPieces: qty, qtyCases: 0 };
         }
 
-        function syncHiddenQtyFields(variant) {
-            const qty = readQty(qtyValueInput);
-            const split = splitQty(variant, qty);
-            qtyPiecesInput.value = String(split.qtyPieces);
-            qtyCasesInput.value = String(split.qtyCases);
-        }
-
-        bindQtyInput(qtyValueInput);
+        qtyValueInput.addEventListener('input', () => sanitizeQtyInput(qtyValueInput));
+        qtyValueInput.addEventListener('focus', () => {
+            if (qtyValueInput.value === '0') qtyValueInput.value = '';
+        });
 
         function renderTxnLines() {
             linesWrap.classList.toggle('d-none', txnLines.length === 0);
@@ -415,21 +408,20 @@
                 tr.appendChild(actionTd);
                 linesBody.appendChild(tr);
 
-                const variantInput = document.createElement('input');
-                variantInput.type = 'hidden';
-                variantInput.name = `Lines[${index}].VariantId`;
-                variantInput.value = String(line.variantId);
-                const piecesInput = document.createElement('input');
-                piecesInput.type = 'hidden';
-                piecesInput.name = `Lines[${index}].QtyPieces`;
-                piecesInput.value = String(line.qtyPieces);
-                const casesInput = document.createElement('input');
-                casesInput.type = 'hidden';
-                casesInput.name = `Lines[${index}].QtyCases`;
-                casesInput.value = String(line.qtyCases);
-                linesInputs.appendChild(variantInput);
-                linesInputs.appendChild(piecesInput);
-                linesInputs.appendChild(casesInput);
+                const fields = [
+                    ['TransactionId', line.transactionId || ''],
+                    ['ProductId', line.productId],
+                    ['VariantId', line.variantId],
+                    ['QtyPieces', line.qtyPieces],
+                    ['QtyCases', line.qtyCases]
+                ];
+                fields.forEach(([name, value]) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = `Lines[${index}].${name}`;
+                    input.value = String(value);
+                    linesInputs.appendChild(input);
+                });
             });
         }
 
@@ -452,71 +444,52 @@
 
             const { qtyPieces, qtyCases } = splitQty(variant, qty);
             const existing = txnLines.find(line => line.variantId === variantId);
-            const nextPieces = (existing?.qtyPieces || 0) + qtyPieces;
-            const nextCases = (existing?.qtyCases || 0) + qtyCases;
-
-            if (currentDirection() < 0) {
-                if (nextPieces > variant.qtyPieces || nextCases > variant.qtyCases) {
-                    if (showAlert) {
-                        alert(isCaseVariant(variant)
-                            ? `สต็อกไม่เพียงพอ (คงเหลือ ${variant.qtyCases.toLocaleString()} กระสอบ/ลัง/เส้น)`
-                            : `สต็อกไม่เพียงพอ (คงเหลือ ${variant.qtyPieces.toLocaleString()} ชิ้น)`);
-                    }
-                    return false;
-                }
-            }
-
             if (existing) {
                 existing.qtyPieces += qtyPieces;
                 existing.qtyCases += qtyCases;
             } else {
                 txnLines.push({
+                    transactionId: null,
+                    productId: variant.productId,
                     variantId,
                     sku: variant.sku,
                     label: variant.label,
                     qtyPieces,
-                    qtyCases
+                    qtyCases,
+                    unit: variant.unit
                 });
             }
 
             qtyValueInput.value = '';
-            qtyPiecesInput.value = '0';
-            qtyCasesInput.value = '0';
             renderTxnLines();
             productSearch.focus();
             productSearch.select();
             return true;
         }
 
-        productSelect.addEventListener('change', () => {
-            buildChips(productSelect.value);
-        });
-
+        productSelect.addEventListener('change', () => buildChips(productSelect.value));
         productSearch.addEventListener('input', () => filterProducts(productSearch.value));
         addLineBtn.addEventListener('click', () => addCurrentLine());
 
         linesBody.addEventListener('click', (e) => {
             const removeBtn = e.target.closest('.remove-txn-line');
             if (!removeBtn) return;
-
             txnLines.splice(Number.parseInt(removeBtn.dataset.index, 10), 1);
             renderTxnLines();
         });
 
-        /* Enter = เพิ่มรายการ (ไม่บันทึก) */
         form.addEventListener('keydown', (e) => {
             if (e.key !== 'Enter') return;
             if (e.target.tagName === 'TEXTAREA') return;
-            if (e.target.closest('#createSubmitBtn')) return;
+            if (e.target.closest('#editSubmitBtn')) return;
             e.preventDefault();
             if (e.target.closest('button, a')) return;
             addCurrentLine();
         });
 
-        // กัน Enter/submit อัตโนมัติ — บันทึกเฉพาะปุ่ม
         form.addEventListener('submit', (e) => e.preventDefault());
 
-        document.getElementById('createSubmitBtn')?.addEventListener('click', () => {
+        document.getElementById('editSubmitBtn')?.addEventListener('click', () => {
             const refNoInput = form.querySelector('[name="RefNo"]');
             if (refNoInput && !refNoInput.value.trim()) {
                 refNoInput.classList.add('is-invalid');
@@ -526,8 +499,6 @@
             if (refNoInput) refNoInput.classList.remove('is-invalid');
 
             if (txnLines.length === 0) {
-                const variant = allVariants.find(v => v.variantId === variantHidden.value);
-                syncHiddenQtyFields(variant);
                 const hasDraftQty = readQty(qtyValueInput) > 0;
                 if (hasDraftQty) addCurrentLine(false);
             }
@@ -537,20 +508,11 @@
                 return;
             }
 
+            renderTxnLines();
             HTMLFormElement.prototype.submit.call(form);
         });
 
-        /* init */
-        if (productSelect.value) buildChips(productSelect.value);
-
-        /* ── txn-type pill toggle ── */
-        document.querySelectorAll('.txn-type-pill input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', () => {
-                document.querySelectorAll('.txn-type-pill').forEach(p => p.classList.remove('is-checked'));
-                if (radio.checked) radio.closest('.txn-type-pill').classList.add('is-checked');
-                buildChips(productSelect.value);
-            });
-        });
+        renderTxnLines();
     })();
     </script>
 }

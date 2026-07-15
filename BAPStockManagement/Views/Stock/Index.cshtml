@@ -852,6 +852,9 @@ else
                 const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
                 if (res.ok) {
                     modalBody.innerHTML = await res.text();
+                    if (typeof window.initThaiDatePickers === 'function') {
+                        window.initThaiDatePickers(modalBody);
+                    }
                     initModalForm();
                 } else {
                     modalBody.innerHTML = '<div class="alert alert-danger m-2">โหลดฟอร์มไม่สำเร็จ กรุณาลองใหม่</div>';
