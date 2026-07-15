@@ -894,7 +894,11 @@ public class TransactionsController : Controller
             .OrderBy(name => name)
             .ToList();
         var colorColumns = standardColors.Concat(extraColors).ToList();
-        var totalColumn = 4 + colorColumns.Count;
+        var caseColumn = 4 + colorColumns.Count;
+        var totalColumn = caseColumn + 1;
+        var titleFill = title == "รับเข้า"
+            ? XLColor.FromHtml("#92D050")
+            : XLColor.FromHtml("#FF0000");
 
         worksheet.Cell(1, 1).Value = from == to
             ? $"{title} วันที่ {from:dd/MM/yyyy}"
@@ -904,9 +908,7 @@ public class TransactionsController : Controller
         worksheet.Range(1, 1, 1, 3).Style.Font.FontColor = XLColor.White;
         worksheet.Range(1, 1, 1, 3).Style.Font.Bold = true;
         worksheet.Cell(1, totalColumn).Value = title;
-        worksheet.Cell(1, totalColumn).Style.Fill.BackgroundColor = title == "รับเข้า"
-            ? XLColor.FromHtml("#92D050")
-            : XLColor.FromHtml("#FF0000");
+        worksheet.Cell(1, totalColumn).Style.Fill.BackgroundColor = titleFill;
         worksheet.Cell(1, totalColumn).Style.Font.Bold = true;
         worksheet.Cell(1, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
@@ -929,10 +931,14 @@ public class TransactionsController : Controller
             worksheet.Cell(2, column).Style.Alignment.WrapText = true;
         }
 
+        worksheet.Cell(2, caseColumn).Value = ProductUnits.Case;
+        worksheet.Cell(2, caseColumn).Style.Font.Bold = true;
+        worksheet.Cell(2, caseColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#FCE4D6");
+        worksheet.Cell(2, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(2, caseColumn).Style.Alignment.WrapText = true;
+
         worksheet.Cell(2, totalColumn).Value = title == "รับเข้า" ? "เข้า" : "ออก";
-        worksheet.Cell(2, totalColumn).Style.Fill.BackgroundColor = title == "รับเข้า"
-            ? XLColor.FromHtml("#92D050")
-            : XLColor.FromHtml("#FF0000");
+        worksheet.Cell(2, totalColumn).Style.Fill.BackgroundColor = titleFill;
         worksheet.Cell(2, totalColumn).Style.Font.Bold = true;
         worksheet.Cell(2, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
@@ -951,30 +957,66 @@ public class TransactionsController : Controller
 
         var row = 3;
         var index = 1;
+        var summaryColorTotals = colorColumns.ToDictionary(c => c, _ => 0, StringComparer.OrdinalIgnoreCase);
+        var summaryCaseTotal = 0;
+        var summaryGrandTotal = 0;
+
         foreach (var productTransactions in groupedTransactions)
         {
-            var byColor = productTransactions
-                .GroupBy(t => ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName))
-                .ToDictionary(g => g.Key, g => g.Sum(t => t.QtyPieces), StringComparer.OrdinalIgnoreCase);
+            var isColorProduct = productTransactions.Any(t =>
+                !string.Equals(
+                    ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName),
+                    ProductVariantDefaults.StandardVariantName,
+                    StringComparison.OrdinalIgnoreCase));
             var totalPieces = productTransactions.Sum(t => t.QtyPieces);
+            var totalCases = productTransactions.Sum(t => t.QtyCases);
+            var totalQty = isColorProduct
+                ? totalPieces
+                : (ProductUnits.IsCaseUnit(productTransactions.Key.Unit) ? totalCases : totalPieces);
 
             worksheet.Cell(row, 1).Value = index++;
             worksheet.Cell(row, 2).Value = productTransactions.Key.Sku;
             worksheet.Cell(row, 3).Value = productTransactions.Key.ProductName;
 
-            for (var i = 0; i < colorColumns.Count; i++)
+            if (isColorProduct)
             {
-                var column = 4 + i;
-                var qty = byColor.TryGetValue(colorColumns[i], out var value) ? value : 0;
-                worksheet.Cell(row, column).Value = qty > 0 ? qty : "-";
-                worksheet.Cell(row, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                var byColor = productTransactions
+                    .GroupBy(t => ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName))
+                    .Where(g => !string.IsNullOrWhiteSpace(g.Key) &&
+                                !g.Key.Equals(ProductVariantDefaults.StandardVariantName, StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(g => g.Key, g => g.Sum(t => t.QtyPieces), StringComparer.OrdinalIgnoreCase);
+
+                for (var i = 0; i < colorColumns.Count; i++)
+                {
+                    var column = 4 + i;
+                    var colorName = colorColumns[i];
+                    var qty = byColor.TryGetValue(colorName, out var value) ? value : 0;
+                    worksheet.Cell(row, column).Value = qty > 0 ? qty : "-";
+                    worksheet.Cell(row, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    summaryColorTotals[colorName] += qty;
+                }
+
+                worksheet.Cell(row, caseColumn).Value = totalCases > 0 ? totalCases : "-";
+                summaryCaseTotal += totalCases;
+            }
+            else
+            {
+                for (var i = 0; i < colorColumns.Count; i++)
+                {
+                    var column = 4 + i;
+                    worksheet.Cell(row, column).Value = "-";
+                    worksheet.Cell(row, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                }
+
+                worksheet.Cell(row, caseColumn).Value = totalQty > 0 ? totalQty : "-";
+                summaryCaseTotal += totalQty;
             }
 
-            worksheet.Cell(row, totalColumn).Value = totalPieces;
-            worksheet.Cell(row, totalColumn).Style.Fill.BackgroundColor = title == "รับเข้า"
-                ? XLColor.FromHtml("#92D050")
-                : XLColor.FromHtml("#FF0000");
+            worksheet.Cell(row, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(row, totalColumn).Value = totalQty;
+            worksheet.Cell(row, totalColumn).Style.Fill.BackgroundColor = titleFill;
             worksheet.Cell(row, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            summaryGrandTotal += totalQty;
             row++;
         }
 
@@ -987,14 +1029,13 @@ public class TransactionsController : Controller
         for (var i = 0; i < colorColumns.Count; i++)
         {
             var column = 4 + i;
-            var total = transactions
-                .Where(t => ProductVariantDefaults.NormalizeVariantName(t.Variant.VariantName)
-                    .Equals(colorColumns[i], StringComparison.OrdinalIgnoreCase))
-                .Sum(t => t.QtyPieces);
+            var total = summaryColorTotals[colorColumns[i]];
             worksheet.Cell(summaryRow, column).Value = total > 0 ? total : "-";
             worksheet.Cell(summaryRow, column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         }
-        worksheet.Cell(summaryRow, totalColumn).Value = transactions.Sum(t => t.QtyPieces);
+        worksheet.Cell(summaryRow, caseColumn).Value = summaryCaseTotal > 0 ? summaryCaseTotal : "-";
+        worksheet.Cell(summaryRow, caseColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Cell(summaryRow, totalColumn).Value = summaryGrandTotal;
         worksheet.Cell(summaryRow, totalColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
         var usedRange = worksheet.Range(1, 1, summaryRow, totalColumn);
@@ -1007,7 +1048,9 @@ public class TransactionsController : Controller
         worksheet.Column(3).Width = 38;
         for (var column = 4; column <= totalColumn; column++)
         {
-            worksheet.Column(column).Width = column == totalColumn ? 10 : 7;
+            worksheet.Column(column).Width = column == totalColumn
+                ? 10
+                : (column == caseColumn ? 14 : 7);
         }
 
         worksheet.Row(2).Height = 44;
