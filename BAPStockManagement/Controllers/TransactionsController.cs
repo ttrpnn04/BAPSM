@@ -528,7 +528,8 @@ public class TransactionsController : Controller
                     u => u.Email ?? u.UserName ?? u.Id)
             : new Dictionary<string, string>();
 
-        var currentStocks = await _context.ProductVariants
+        // ยอดคงเหลือ ณ สิ้นวัน to = SUM(qty * direction) ของธุรกรรมทั้งหมดถึงวันนั้น
+        var asOfStocks = await _context.ProductVariants
             .AsNoTracking()
             .Where(v => v.IsActive && v.Product.IsActive && v.Product.Category.IsActive)
             .Select(v => new StockExportRow
@@ -540,8 +541,12 @@ public class TransactionsController : Controller
                 ProductName = v.Product.ProductName,
                 Unit = v.Product.Unit,
                 VariantName = v.VariantName,
-                QtyPieces = v.StockBalance != null ? v.StockBalance.QtyPieces : 0,
-                QtyCases = v.StockBalance != null ? v.StockBalance.QtyCases : 0
+                QtyPieces = v.StockTransactions
+                    .Where(t => t.TxnDate <= to)
+                    .Sum(t => (int?)(t.QtyPieces * t.TransactionType.Direction)) ?? 0,
+                QtyCases = v.StockTransactions
+                    .Where(t => t.TxnDate <= to)
+                    .Sum(t => (int?)(t.QtyCases * t.TransactionType.Direction)) ?? 0
             })
             .ToListAsync();
 
@@ -561,7 +566,7 @@ public class TransactionsController : Controller
             "ขายออก");
 
         var stockSheet = workbook.Worksheets.Add("ยอดคงเหลือ");
-        WriteStockMatrixSheet(stockSheet, currentStocks);
+        WriteStockMatrixSheet(stockSheet, asOfStocks, to);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -585,7 +590,7 @@ public class TransactionsController : Controller
         public int QtyCases { get; set; }
     }
 
-    private static void WriteStockMatrixSheet(IXLWorksheet worksheet, IReadOnlyList<StockExportRow> stocks)
+    private static void WriteStockMatrixSheet(IXLWorksheet worksheet, IReadOnlyList<StockExportRow> stocks, DateOnly asOfDate)
     {
         var colorColumns = ProductVariantDefaults.ColorNames.ToList();
         var caseColumn = 4 + colorColumns.Count;
@@ -602,6 +607,12 @@ public class TransactionsController : Controller
             "กลุ่มรถหัดเดิน-1-BL-L",
             "กลุ่มรถหัดเดิน-2BL-E"
         };
+
+        worksheet.Cell(1, 1).Value = $"ยอดคงเหลือ ณ วันที่ {asOfDate:dd/MM/yyyy}";
+        worksheet.Range(1, 1, 1, 3).Merge();
+        worksheet.Range(1, 1, 1, 3).Style.Fill.BackgroundColor = XLColor.Black;
+        worksheet.Range(1, 1, 1, 3).Style.Font.FontColor = XLColor.White;
+        worksheet.Range(1, 1, 1, 3).Style.Font.Bold = true;
 
         worksheet.Cell(1, 4).Value = "สต็อก";
         worksheet.Range(1, 4, 1, caseColumn).Merge();
@@ -945,12 +956,16 @@ public class TransactionsController : Controller
         var groupedTransactions = transactions
             .GroupBy(t => new
             {
+                CategorySortOrder = t.Variant.Product.Category.SortOrder,
                 t.Variant.Product.Category.CategoryName,
+                ProductSortOrder = t.Variant.Product.SortOrder,
                 t.Variant.Product.Sku,
                 t.Variant.Product.ProductName,
                 t.Variant.Product.Unit
             })
-            .OrderBy(g => g.Key.CategoryName)
+            .OrderBy(g => g.Key.CategorySortOrder)
+            .ThenBy(g => g.Key.CategoryName)
+            .ThenBy(g => g.Key.ProductSortOrder == 0 ? int.MaxValue : g.Key.ProductSortOrder)
             .ThenBy(g => g.Key.Sku)
             .ThenBy(g => g.Key.ProductName)
             .ToList();
