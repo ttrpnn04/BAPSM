@@ -1,0 +1,102 @@
+@model BAPStockManagement.ViewModels.Customers.CustomerIndexViewModel
+@{
+    ViewData["Title"] = "ลูกค้า / ร้าน";
+    var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("Admin");
+}
+
+<div class="page-header">
+    <div>
+        <h1>ลูกค้า / ร้าน</h1>
+        <p class="subtitle">ข้อมูลร้านสำหรับออกบิลและใบปะ</p>
+    </div>
+    @if (isAdmin)
+    {
+        <div class="page-actions">
+            <a asp-action="Import" class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-arrow-up me-1"></i>นำเข้า Excel
+            </a>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="bi bi-plus-lg me-1"></i>เพิ่มลูกค้า
+            </a>
+        </div>
+    }
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-md-5">
+        <label class="form-label">ค้นหา</label>
+        <input type="search" name="search" value="@Model.Search" class="form-control"
+               placeholder="ชื่อร้าน / รหัส / อำเภอ / จังหวัด / โทร" />
+    </div>
+    <div class="col-md-3">
+        <div class="form-check mt-4">
+            <input class="form-check-input" type="checkbox" name="showInactive" value="true"
+                   id="showInactive" @(Model.ShowInactive ? "checked" : null) />
+            <label class="form-check-label" for="showInactive">แสดงที่ปิดใช้งาน</label>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100">ค้นหา</button>
+    </div>
+</form>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>รหัส</th>
+                    <th>ชื่อร้าน</th>
+                    <th>อำเภอ</th>
+                    <th>จังหวัด</th>
+                    <th>โทร</th>
+                    <th>เขต</th>
+                    <th>สถานะ</th>
+                    @if (isAdmin)
+                    {
+                        <th class="text-end">จัดการ</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr>
+                        <td colspan="@(isAdmin ? 8 : 7)" class="text-center text-muted py-4">
+                            ยังไม่มีข้อมูลลูกค้า — นำเข้าจากไฟล์ Excel บิลขายได้
+                        </td>
+                    </tr>
+                }
+                @foreach (var item in Model.Items)
+                {
+                    <tr class="@(!item.IsActive ? "table-secondary" : null)">
+                        <td>@item.CustomerCode</td>
+                        <td class="fw-medium">@item.Name</td>
+                        <td>@item.District</td>
+                        <td>@item.Province</td>
+                        <td>@item.Phone1</td>
+                        <td>@item.SalesZone</td>
+                        <td>
+                            @if (item.IsActive)
+                            {
+                                <span class="badge bg-success">ใช้งาน</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">ปิด</span>
+                            }
+                        </td>
+                        @if (isAdmin)
+                        {
+                            <td class="text-end">
+                                <a asp-action="Edit" asp-route-id="@item.CustomerId" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

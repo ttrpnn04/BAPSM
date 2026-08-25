@@ -1,0 +1,153 @@
+<script>
+(function () {
+    const form = document.getElementById('saleBillForm');
+    const customerSelect = document.getElementById('customerSelect');
+    const customerFilter = document.getElementById('customerFilter');
+    const preview = document.getElementById('customerPreview');
+    const linesBody = document.getElementById('linesBody');
+    const addLineBtn = document.getElementById('addLineBtn');
+    const lineTemplate = document.getElementById('lineTemplate');
+
+    function money(n) {
+        return (Number.isFinite(n) ? n : 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function parseNum(el) {
+        const v = parseFloat((el?.value || '').replace(/,/g, ''));
+        return Number.isFinite(v) ? v : 0;
+    }
+
+    function stripCommas(el) {
+        if (!el) return;
+        el.value = (el.value || '').replace(/,/g, '').trim();
+    }
+
+    function syncBillDate() {
+        const billDateInput = form?.querySelector('input[name="BillDate"]');
+        if (!billDateInput) return true;
+
+        if (billDateInput._flatpickr) {
+            const fp = billDateInput._flatpickr;
+            if (fp.selectedDates.length > 0) {
+                billDateInput.value = fp.formatDate(fp.selectedDates[0], 'Y-m-d');
+            } else if (fp.input && fp.input.value) {
+                billDateInput.value = fp.input.value;
+            }
+        }
+
+        if (!billDateInput.value || !/^\d{4}-\d{2}-\d{2}$/.test(billDateInput.value)) {
+            alert('กรุณาเลือกวันที่บิล');
+            billDateInput.focus();
+            return false;
+        }
+        return true;
+    }
+
+    function normalizeNumericFields() {
+        linesBody?.querySelectorAll('.line-qty, .line-price, .line-discount').forEach(stripCommas);
+    }
+
+    function reindexLines() {
+        [...linesBody.querySelectorAll('tr.bill-line')].forEach((row, i) => {
+            row.querySelectorAll('input').forEach(input => {
+                input.name = input.name.replace(/Lines\[\d+\]/, `Lines[${i}]`);
+            });
+        });
+    }
+
+    function recalc() {
+        let gross = 0;
+        let discount = 0;
+        linesBody.querySelectorAll('tr.bill-line').forEach(row => {
+            const qty = parseNum(row.querySelector('.line-qty'));
+            const price = parseNum(row.querySelector('.line-price'));
+            const disc = parseNum(row.querySelector('.line-discount'));
+            const amount = qty * price;
+            gross += amount;
+            discount += qty * disc;
+            const cell = row.querySelector('.line-amount');
+            if (cell) cell.textContent = money(amount);
+        });
+        document.getElementById('grossTotal').textContent = money(gross);
+        document.getElementById('discountTotal').textContent = money(discount);
+        document.getElementById('netTotal').textContent = money(gross - discount);
+    }
+
+    async function loadCustomer(id) {
+        if (!id) {
+            preview.classList.add('d-none');
+            return;
+        }
+        const res = await fetch(`/Customers/Lookup/${id}`);
+        if (!res.ok) {
+            preview.classList.add('d-none');
+            return;
+        }
+        const c = await res.json();
+        document.getElementById('previewName').textContent = c.name || '';
+        const addr = [c.address, c.district, c.province].filter(Boolean).join(' ');
+        document.getElementById('previewAddress').textContent = addr;
+        document.getElementById('previewPhone').textContent = c.phone1 ? `Tel. ${c.phone1}` : '';
+        document.getElementById('previewShipping').textContent = c.shippingInfo || '';
+        preview.classList.remove('d-none');
+    }
+
+    customerSelect?.addEventListener('change', () => loadCustomer(customerSelect.value));
+
+    customerFilter?.addEventListener('input', () => {
+        const q = customerFilter.value.trim().toLowerCase();
+        [...customerSelect.options].forEach((opt, idx) => {
+            if (idx === 0) return;
+            const text = (opt.textContent || '').toLowerCase();
+            opt.hidden = q && !text.includes(q);
+        });
+    });
+
+    addLineBtn?.addEventListener('click', () => {
+        const html = lineTemplate.innerHTML.replaceAll('__i__', String(linesBody.children.length));
+        linesBody.insertAdjacentHTML('beforeend', html);
+        reindexLines();
+        recalc();
+    });
+
+    linesBody?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.remove-line');
+        if (!btn) return;
+        const rows = linesBody.querySelectorAll('tr.bill-line');
+        if (rows.length <= 1) {
+            rows[0].querySelectorAll('input').forEach(i => {
+                if (i.name.endsWith('.Unit')) i.value = 'คัน';
+                else i.value = '';
+            });
+            recalc();
+            return;
+        }
+        btn.closest('tr')?.remove();
+        reindexLines();
+        recalc();
+    });
+
+    linesBody?.addEventListener('input', (e) => {
+        if (e.target.matches('.line-qty, .line-price, .line-discount')) {
+            recalc();
+        }
+    });
+
+    form?.addEventListener('submit', (e) => {
+        if (!syncBillDate()) {
+            e.preventDefault();
+            return;
+        }
+        normalizeNumericFields();
+        reindexLines();
+    });
+
+    recalc();
+    if (customerSelect?.value) {
+        loadCustomer(customerSelect.value);
+    }
+})();
+</script>

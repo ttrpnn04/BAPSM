@@ -1,0 +1,136 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillFormViewModel
+
+<div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+<div class="table-card p-3 mb-3">
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <label asp-for="CustomerId" class="form-label"></label>
+            <input type="search" id="customerFilter" class="form-control form-control-sm mb-2"
+                   placeholder="พิมพ์ค้นหาชื่อร้าน..." autocomplete="off" />
+            <select asp-for="CustomerId" asp-items="Model.CustomerOptions" class="form-select" id="customerSelect">
+                <option value="">-- เลือกร้าน --</option>
+            </select>
+            <span asp-validation-for="CustomerId" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="BillDate" class="form-label"></label>
+            <input asp-for="BillDate" type="text" class="form-control js-datepicker"
+                   value="@Model.BillDate.ToString("yyyy-MM-dd")" autocomplete="off" />
+            <span asp-validation-for="BillDate" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="PaymentTermsDays" class="form-label"></label>
+            <input asp-for="PaymentTermsDays" class="form-control" />
+        </div>
+        <div class="col-12">
+            <div id="customerPreview" class="border rounded p-3 bg-light @(Model.CustomerId.HasValue ? "" : "d-none")">
+                <div class="fw-medium" id="previewName">@Model.CustomerPreviewName</div>
+                <div class="small text-muted" id="previewAddress">@Model.CustomerPreviewAddress</div>
+                <div class="small" id="previewPhone">@(string.IsNullOrWhiteSpace(Model.CustomerPreviewPhone) ? "" : $"Tel. {Model.CustomerPreviewPhone}")</div>
+                <div class="small mt-1" id="previewShipping">@Model.CustomerPreviewShipping</div>
+            </div>
+        </div>
+        <div class="col-12">
+            <label asp-for="Note" class="form-label"></label>
+            <textarea asp-for="Note" class="form-control" rows="2"></textarea>
+        </div>
+    </div>
+</div>
+
+<div class="table-card">
+    <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+        <div class="fw-medium">รายการขาย</div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="addLineBtn">
+            <i class="bi bi-plus-lg me-1"></i>เพิ่มแถว
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0" id="linesTable">
+            <thead>
+                <tr>
+                    <th style="min-width:100px">รหัส</th>
+                    <th style="min-width:220px">รายการ</th>
+                    <th style="width:90px">จำนวน</th>
+                    <th style="width:80px">หน่วย</th>
+                    <th style="width:110px">ราคา/หน่วย</th>
+                    <th style="width:110px">ส่วนลด/หน่วย</th>
+                    <th style="width:120px" class="text-end">จำนวนเงิน</th>
+                    <th style="width:40px"></th>
+                </tr>
+            </thead>
+            <tbody id="linesBody">
+                @for (var i = 0; i < Model.Lines.Count; i++)
+                {
+                    <tr class="bill-line">
+                        <td>
+                            <input name="Lines[@i].Sku" value="@Model.Lines[i].Sku" class="form-control form-control-sm" />
+                        </td>
+                        <td>
+                            <input name="Lines[@i].Description" value="@Model.Lines[i].Description" class="form-control form-control-sm line-desc" />
+                            <span class="text-danger field-validation-valid" data-valmsg-for="Lines[@i].Description"></span>
+                        </td>
+                        <td>
+                            <input name="Lines[@i].Qty" value="@(Model.Lines[i].Qty == 0 ? "" : Model.Lines[i].Qty.ToString("0.##"))"
+                                   class="form-control form-control-sm line-qty text-end" inputmode="decimal" />
+                        </td>
+                        <td>
+                            <input name="Lines[@i].Unit" value="@Model.Lines[i].Unit" class="form-control form-control-sm" />
+                        </td>
+                        <td>
+                            <input name="Lines[@i].UnitPrice" value="@(Model.Lines[i].UnitPrice == 0 ? "" : Model.Lines[i].UnitPrice.ToString("0.##"))"
+                                   class="form-control form-control-sm line-price text-end" inputmode="decimal" />
+                        </td>
+                        <td>
+                            <input name="Lines[@i].DiscountPerUnit" value="@(Model.Lines[i].DiscountPerUnit == 0 ? "" : Model.Lines[i].DiscountPerUnit.ToString("0.##"))"
+                                   class="form-control form-control-sm line-discount text-end" inputmode="decimal" />
+                        </td>
+                        <td class="text-end line-amount">0.00</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-line" title="ลบแถว">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="text-end">รวมเป็นเงิน</td>
+                    <td></td>
+                    <td class="text-end fw-medium" id="grossTotal">0.00</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="5" class="text-end">หักส่วนลด</td>
+                    <td></td>
+                    <td class="text-end" id="discountTotal">0.00</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <td colspan="5" class="text-end fw-semibold">ยอดรวมทั้งสิ้น</td>
+                    <td></td>
+                    <td class="text-end fw-semibold" id="netTotal">0.00</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<template id="lineTemplate">
+    <tr class="bill-line">
+        <td><input name="Lines[__i__].Sku" class="form-control form-control-sm" /></td>
+        <td><input name="Lines[__i__].Description" class="form-control form-control-sm line-desc" /></td>
+        <td><input name="Lines[__i__].Qty" class="form-control form-control-sm line-qty text-end" inputmode="decimal" /></td>
+        <td><input name="Lines[__i__].Unit" value="คัน" class="form-control form-control-sm" /></td>
+        <td><input name="Lines[__i__].UnitPrice" class="form-control form-control-sm line-price text-end" inputmode="decimal" /></td>
+        <td><input name="Lines[__i__].DiscountPerUnit" class="form-control form-control-sm line-discount text-end" inputmode="decimal" /></td>
+        <td class="text-end line-amount">0.00</td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-line" title="ลบแถว">
+                <i class="bi bi-x"></i>
+            </button>
+        </td>
+    </tr>
+</template>

@@ -115,11 +115,26 @@
                     <div id="txnLinesInputs"></div>
                 </div>
 
-                <div class="mb-3">
-                    <label asp-for="RefNo" class="form-label"></label> <span class="text-danger">*</span>
-                    <input asp-for="RefNo" class="form-control" placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
-                    <span asp-validation-for="RefNo" class="text-danger small"></span>
+                <div class="mb-3" id="customerPickerWrap">
+                    <label class="form-label">ลูกค้า / ร้าน <span class="text-danger">*</span></label>
+                    <input type="search" id="customerFilter" class="form-control form-control-sm mb-2"
+                           placeholder="ค้นหาชื่อร้าน..." autocomplete="off" />
+                    <select asp-for="CustomerId" asp-items="ViewBag.Customers" class="form-select" id="customerSelect">
+                        <option value="">-- เลือกร้าน --</option>
+                    </select>
+                    <span asp-validation-for="CustomerId" class="text-danger small"></span>
+                    <div class="form-text">ขายออก: เลือกร้านแล้วระบบสร้างบิลขายให้อัตโนมัติ</div>
+                    <input type="hidden" asp-for="RefNo" id="txnRefNo" />
                 </div>
+
+                <div class="mb-3 d-none" id="refNoWrap">
+                    <label class="form-label">ชื่อร้าน / เลขที่อ้างอิง <span class="text-danger">*</span></label>
+                    <input type="text" id="txnRefNoText" class="form-control" value="@Model.RefNo"
+                           placeholder="เช่น ร้าน A, PO-001" maxlength="50" />
+                    <span class="text-danger small" data-valmsg-for="RefNo"></span>
+                </div>
+
+                <input type="hidden" id="saleOutTypeId" value="@ViewBag.SaleOutTypeId" />
 
                 <div class="mb-4">
                     <label asp-for="Note" class="form-label"></label>
@@ -516,14 +531,74 @@
         // กัน Enter/submit อัตโนมัติ — บันทึกเฉพาะปุ่ม
         form.addEventListener('submit', (e) => e.preventDefault());
 
-        document.getElementById('createSubmitBtn')?.addEventListener('click', () => {
-            const refNoInput = form.querySelector('[name="RefNo"]');
-            if (refNoInput && !refNoInput.value.trim()) {
-                refNoInput.classList.add('is-invalid');
-                refNoInput.focus();
-                return;
+        function syncShopFields() {
+            const saleOutTypeId = document.getElementById('saleOutTypeId')?.value;
+            const selectedType = form.querySelector('input[name="TransactionTypeId"]:checked');
+            const isSaleOut = selectedType && saleOutTypeId && selectedType.value === saleOutTypeId;
+            const customerWrap = document.getElementById('customerPickerWrap');
+            const refWrap = document.getElementById('refNoWrap');
+            const customerSelect = document.getElementById('customerSelect');
+            const refNoInput = document.getElementById('txnRefNo');
+            const refNoText = document.getElementById('txnRefNoText');
+
+            if (isSaleOut) {
+                customerWrap?.classList.remove('d-none');
+                refWrap?.classList.add('d-none');
+                if (customerSelect) customerSelect.disabled = false;
+                if (refNoText) refNoText.disabled = true;
+                const opt = customerSelect?.selectedOptions?.[0];
+                if (refNoInput && opt && opt.value) {
+                    const label = (opt.textContent || '').replace(/^\d+\s*—\s*/, '').replace(/\s*\(.*\)\s*$/, '').trim();
+                    refNoInput.value = label.slice(0, 50);
+                }
+            } else {
+                customerWrap?.classList.add('d-none');
+                refWrap?.classList.remove('d-none');
+                if (customerSelect) {
+                    customerSelect.value = '';
+                    customerSelect.disabled = true;
+                }
+                if (refNoText) refNoText.disabled = false;
+                if (refNoInput && refNoText) refNoInput.value = refNoText.value.trim();
             }
-            if (refNoInput) refNoInput.classList.remove('is-invalid');
+        }
+
+        document.getElementById('customerFilter')?.addEventListener('input', (e) => {
+            const q = e.target.value.trim().toLowerCase();
+            const select = document.getElementById('customerSelect');
+            if (!select) return;
+            [...select.options].forEach((opt, idx) => {
+                if (idx === 0) return;
+                opt.hidden = q && !(opt.textContent || '').toLowerCase().includes(q);
+            });
+        });
+        document.getElementById('customerSelect')?.addEventListener('change', syncShopFields);
+
+        document.getElementById('createSubmitBtn')?.addEventListener('click', () => {
+            syncShopFields();
+            const saleOutTypeId = document.getElementById('saleOutTypeId')?.value;
+            const selectedType = form.querySelector('input[name="TransactionTypeId"]:checked');
+            const isSaleOut = selectedType && saleOutTypeId && selectedType.value === saleOutTypeId;
+            const customerSelect = document.getElementById('customerSelect');
+            const refNoText = document.getElementById('txnRefNoText');
+            const refNoInput = document.getElementById('txnRefNo');
+
+            if (isSaleOut) {
+                if (!customerSelect?.value) {
+                    customerSelect?.classList.add('is-invalid');
+                    customerSelect?.focus();
+                    return;
+                }
+                customerSelect.classList.remove('is-invalid');
+            } else {
+                if (!refNoText?.value.trim()) {
+                    refNoText?.classList.add('is-invalid');
+                    refNoText?.focus();
+                    return;
+                }
+                refNoText.classList.remove('is-invalid');
+                if (refNoInput) refNoInput.value = refNoText.value.trim();
+            }
 
             if (txnLines.length === 0) {
                 const variant = allVariants.find(v => v.variantId === variantHidden.value);
@@ -542,6 +617,7 @@
 
         /* init */
         if (productSelect.value) buildChips(productSelect.value);
+        syncShopFields();
 
         /* ── txn-type pill toggle ── */
         document.querySelectorAll('.txn-type-pill input[type="radio"]').forEach(radio => {
@@ -549,6 +625,7 @@
                 document.querySelectorAll('.txn-type-pill').forEach(p => p.classList.remove('is-checked'));
                 if (radio.checked) radio.closest('.txn-type-pill').classList.add('is-checked');
                 buildChips(productSelect.value);
+                syncShopFields();
             });
         });
     })();

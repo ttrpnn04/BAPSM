@@ -19,4 +19,6 @@ public class StockDocument
     public virtual TransactionType TransactionType { get; set; } = null!;
 
     public virtual ICollection<StockTransaction> StockTransactions { get; set; } = new List<StockTransaction>();
+
+    public virtual SaleBill? SaleBill { get; set; }
 }

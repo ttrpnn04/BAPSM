@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - BAP</title>
+    <link rel="stylesheet" href="~/css/print-billing.css" asp-append-version="true" />
+</head>
+<body class="print-body">
+    <div class="no-print print-toolbar">
+        <button type="button" onclick="window.print()">พิมพ์</button>
+        <button type="button" onclick="window.close()">ปิด</button>
+    </div>
+    @RenderBody()
+</body>
+</html>

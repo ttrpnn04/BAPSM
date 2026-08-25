@@ -1,0 +1,25 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillPrintViewModel
+@{
+    Layout = "~/Views/Shared/_PrintLayout.cshtml";
+    ViewData["Title"] = $"ใบปะกล่อง {Model.BillNo}";
+    var districtProvince = string.Join(" ", new[] { Model.CustomerDistrict, Model.CustomerProvince }
+        .Where(s => !string.IsNullOrWhiteSpace(s)));
+}
+
+<div class="doc box-doc">
+    @for (var i = 1; i <= Model.BoxLabelCount; i++)
+    {
+        <div class="box-label">
+            <div class="box-top">
+                <span class="box-tag">ส่งร้าน</span>
+                <span class="box-seq">@i</span>
+                <span class="box-sender">ผู้ส่ง @Model.SenderName</span>
+            </div>
+            <div class="box-phone">TEL : @Model.SenderPhone</div>
+            <div class="box-name">@Model.CustomerName</div>
+            <div class="box-place">@districtProvince</div>
+            <div class="box-tel">Tel. @Model.CustomerPhone</div>
+            <div class="box-ship">@Model.CustomerShippingInfo</div>
+        </div>
+    }
+</div>

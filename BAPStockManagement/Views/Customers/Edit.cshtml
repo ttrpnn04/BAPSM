@@ -1,0 +1,22 @@
+@model BAPStockManagement.ViewModels.Customers.CustomerFormViewModel
+@{
+    ViewData["Title"] = "แก้ไขลูกค้า";
+}
+
+<div class="page-header">
+    <div>
+        <h1>แก้ไขลูกค้า</h1>
+        <p class="subtitle">@Model.Name</p>
+    </div>
+</div>
+
+<form asp-action="Edit" method="post" class="col-lg-8">
+    <input type="hidden" asp-for="CustomerId" />
+    <partial name="_CustomerForm" />
+    <button type="submit" class="btn btn-primary">บันทึก</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

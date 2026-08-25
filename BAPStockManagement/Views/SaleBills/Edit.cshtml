@@ -1,0 +1,25 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillFormViewModel
+@{
+    ViewData["Title"] = "แก้ไขบิลขาย";
+}
+
+<div class="page-header">
+    <div>
+        <h1>แก้ไขบิลขาย</h1>
+        <p class="subtitle">แก้ไขข้อมูลร้านและรายการขาย</p>
+    </div>
+</div>
+
+<form asp-action="Edit" method="post" id="saleBillForm">
+    <input type="hidden" asp-for="SaleBillId" />
+    <partial name="_SaleBillForm" />
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">บันทึก</button>
+        <a asp-action="Details" asp-route-id="@Model.SaleBillId" class="btn btn-outline-secondary">ยกเลิก</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <partial name="_SaleBillFormScripts" />
+}

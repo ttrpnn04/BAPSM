@@ -1,0 +1,118 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillIndexViewModel
+@{
+    ViewData["Title"] = "บิลขาย";
+}
+
+<div class="page-header">
+    <div>
+        <h1>บิลขาย</h1>
+        <p class="subtitle">ออกบิล / พิมพ์ใบส่งสินค้า ใบปะกล่อง ใบปะหน้าซอง</p>
+    </div>
+    <div class="page-actions">
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>สร้างบิล
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-3" id="filterForm">
+    <div class="col-md-3">
+        <label class="form-label">จากวันที่</label>
+        <input type="text" name="fromDate" class="form-control js-datepicker"
+               value="@(Model.FromDate?.ToString("yyyy-MM-dd"))" autocomplete="off" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">ถึงวันที่</label>
+        <input type="text" name="toDate" class="form-control js-datepicker"
+               value="@(Model.ToDate?.ToString("yyyy-MM-dd"))" autocomplete="off" />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">ค้นหา</label>
+        <input type="search" name="search" value="@Model.Search" class="form-control"
+               placeholder="เลขบิล / ชื่อร้าน" />
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-secondary w-100">ค้นหา</button>
+    </div>
+</form>
+
+<form asp-action="ExportExcel" method="post" id="exportForm">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="fromDate" value="@(Model.FromDate?.ToString("yyyy-MM-dd"))" />
+    <input type="hidden" name="toDate" value="@(Model.ToDate?.ToString("yyyy-MM-dd"))" />
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="selectAllBills" />
+            <label class="form-check-label" for="selectAllBills">เลือกทั้งหมดในหน้านี้</label>
+        </div>
+        <button type="submit" class="btn btn-outline-success" id="exportBtn">
+            <i class="bi bi-file-earmark-excel me-1"></i>ดาวน์โหลด Excel (ฟอร์มเดิม)
+        </button>
+    </div>
+
+    <div class="table-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width:2.5rem"></th>
+                        <th>เลขบิล</th>
+                        <th>วันที่</th>
+                        <th>ร้าน</th>
+                        <th class="text-end">จำนวน</th>
+                        <th class="text-end">ส่วนลด</th>
+                        <th class="text-end">ยอดสุทธิ</th>
+                        <th class="text-end">จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">ยังไม่มีบิลในช่วงที่เลือก</td>
+                        </tr>
+                    }
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <input class="form-check-input bill-check" type="checkbox"
+                                       name="ids" value="@item.SaleBillId" />
+                            </td>
+                            <td class="fw-medium">@item.BillNo</td>
+                            <td>@item.BillDate.ToString("dd/MM/yyyy")</td>
+                            <td>@item.CustomerName</td>
+                            <td class="text-end">@item.TotalQty.ToString("N0")</td>
+                            <td class="text-end">@item.DiscountAmount.ToString("N2")</td>
+                            <td class="text-end">@item.NetAmount.ToString("N2")</td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@item.SaleBillId" class="btn btn-sm btn-outline-primary">
+                                    เปิด
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+    (() => {
+        const selectAll = document.getElementById('selectAllBills');
+        const checks = () => [...document.querySelectorAll('.bill-check')];
+        selectAll?.addEventListener('change', () => {
+            checks().forEach(c => { c.checked = selectAll.checked; });
+        });
+        document.getElementById('exportForm')?.addEventListener('submit', (e) => {
+            const any = checks().some(c => c.checked);
+            if (!any && !confirm('ไม่ได้เลือกบิล — Export ทุกบิลในช่วงวันที่ที่ค้นหา (สูงสุด 50)?')) {
+                e.preventDefault();
+            }
+        });
+    })();
+    </script>
+}

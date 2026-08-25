@@ -1,0 +1,32 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillPrintViewModel
+@{
+    Layout = "~/Views/Shared/_PrintLayout.cshtml";
+    ViewData["Title"] = $"ใบปะหน้าซอง {Model.BillNo}";
+}
+
+<div class="doc envelope-doc">
+    <div class="envelope-label">
+        <div class="env-top">
+            <span class="box-tag">ส่งร้าน</span>
+            <span class="box-sender">ผู้ส่ง @Model.SenderName</span>
+            <span class="box-phone">TEL : @Model.SenderPhone</span>
+        </div>
+
+        <div class="env-grid">
+            <div class="env-customer">
+                <div><span class="lbl">ลูกค้า :</span> <strong>@Model.CustomerName</strong></div>
+                <div>@Model.CustomerDistrict @Model.CustomerProvince</div>
+                <div><span class="lbl">Tel.</span> @Model.CustomerPhone</div>
+                <div class="ship"><span class="lbl">ขนส่งโดย</span> @Model.CustomerShippingInfo</div>
+            </div>
+            <div class="env-meta">
+                <div><span class="lbl">เอกสารเลขที่ :</span> <strong>@Model.BillNo</strong></div>
+                <div><span class="lbl">วันที่</span> @Model.BillDate.ToString("dd/MM/yyyy")</div>
+                <div><span class="lbl">เขตการขาย</span> @Model.CustomerSalesZone</div>
+                <div><span class="lbl">เลขที่ใบสั่งขาย :</span> @Model.BillNo</div>
+                <div><span class="lbl">เงื่อนไขการชำระเงิน</span> @Model.PaymentTermsDays วัน</div>
+                <div><span class="lbl">ครบกำหนดชำระเงิน</span> @Model.DueDate.ToString("dd/MM/yyyy")</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -99,12 +99,26 @@
         <div id="txnLinesInputs"></div>
     </div>
 
-    <div class="mb-3">
+    <div class="mb-3" id="customerPickerWrap">
+        <label class="form-label">ลูกค้า / ร้าน <span class="text-danger">*</span></label>
+        <input type="search" id="customerFilter" class="form-control form-control-sm mb-2"
+               placeholder="ค้นหาชื่อร้าน..." autocomplete="off" />
+        <select name="CustomerId" id="customerSelect" class="form-select"
+                asp-items="@((IEnumerable<SelectListItem>)ViewBag.Customers)">
+            <option value="">-- เลือกร้าน --</option>
+        </select>
+        <div class="form-text">ขายออก: เลือกร้านแล้วระบบสร้างบิลขายให้อัตโนมัติ</div>
+        <input type="hidden" name="RefNo" id="txnRefNo" value="@Model.RefNo" />
+    </div>
+
+    <div class="mb-3 d-none" id="refNoWrap">
         <label class="form-label">ชื่อร้าน / เลขที่อ้างอิง <span class="text-danger">*</span></label>
-        <input type="text" name="RefNo" id="txnRefNo" class="form-control" value="@Model.RefNo"
-               placeholder="เช่น ร้าน A, PO-001" maxlength="50" required />
+        <input type="text" id="txnRefNoText" class="form-control" value="@Model.RefNo"
+               placeholder="เช่น ร้าน A, PO-001" maxlength="50" />
         <div class="invalid-feedback">กรุณากรอกชื่อร้าน / เลขที่อ้างอิง</div>
     </div>
+
+    <input type="hidden" id="saleOutTypeId" value="@ViewBag.SaleOutTypeId" />
 
     <div class="mb-4">
         <label class="form-label">หมายเหตุ</label>

@@ -4,6 +4,7 @@ using BAPStockManagement.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BAPStockManagement.Migrations
 {
     [DbContext(typeof(BAPStockContext))]
-    partial class BAPStockContextModelSnapshot : ModelSnapshot
+    [Migration("20260811110250_AddBillingTables")]
+    partial class AddBillingTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -320,10 +323,6 @@ namespace BAPStockManagement.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(30, "DF_SaleBills_PaymentTermsDays");
 
-                    b.Property<long?>("StockDocumentId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("StockDocumentID");
-
                     b.HasKey("SaleBillId");
 
                     b.HasIndex(new[] { "BillDate" }, "IX_SaleBills_BillDate");
@@ -332,10 +331,6 @@ namespace BAPStockManagement.Migrations
 
                     b.HasIndex(new[] { "BillNo" }, "UQ_SaleBills_BillNo")
                         .IsUnique();
-
-                    b.HasIndex(new[] { "StockDocumentId" }, "UQ_SaleBills_StockDocumentID")
-                        .IsUnique()
-                        .HasFilter("[StockDocumentID] IS NOT NULL");
 
                     b.ToTable("SaleBills", (string)null);
                 });
@@ -873,15 +868,7 @@ namespace BAPStockManagement.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_SaleBills_Customers");
 
-                    b.HasOne("BAPStockManagement.Models.StockDocument", "StockDocument")
-                        .WithOne("SaleBill")
-                        .HasForeignKey("BAPStockManagement.Models.SaleBill", "StockDocumentId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_SaleBills_StockDocuments");
-
                     b.Navigation("Customer");
-
-                    b.Navigation("StockDocument");
                 });
 
             modelBuilder.Entity("BAPStockManagement.Models.SaleBillLine", b =>
@@ -1025,8 +1012,6 @@ namespace BAPStockManagement.Migrations
 
             modelBuilder.Entity("BAPStockManagement.Models.StockDocument", b =>
                 {
-                    b.Navigation("SaleBill");
-
                     b.Navigation("StockTransactions");
                 });
 

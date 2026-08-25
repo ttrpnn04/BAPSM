@@ -34,6 +34,9 @@ public class CreateTransactionViewModel
     [Display(Name = "ชื่อร้าน / เลขที่อ้างอิง")]
     public string RefNo { get; set; } = string.Empty;
 
+    [Display(Name = "ลูกค้า / ร้าน")]
+    public int? CustomerId { get; set; }
+
     [MaxLength(300)]
     [Display(Name = "หมายเหตุ")]
     public string? Note { get; set; }

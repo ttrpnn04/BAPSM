@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -34,6 +34,12 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
     public virtual DbSet<VwCurrentStock> VwCurrentStocks { get; set; }
 
     public virtual DbSet<VwMonthlySummary> VwMonthlySummaries { get; set; }
+
+    public virtual DbSet<Customer> Customers { get; set; }
+
+    public virtual DbSet<SaleBill> SaleBills { get; set; }
+
+    public virtual DbSet<SaleBillLine> SaleBillLines { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -214,6 +220,95 @@ public partial class BAPStockContext : IdentityDbContext<IdentityUser>
                 .HasMaxLength(50)
                 .HasColumnName("SKU");
             entity.Property(e => e.VariantName).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            entity.HasKey(e => e.CustomerId);
+
+            entity.ToTable("Customers");
+
+            entity.HasIndex(e => e.CustomerCode, "UQ_Customers_Code").IsUnique();
+            entity.HasIndex(e => e.Name, "IX_Customers_Name");
+
+            entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
+            entity.Property(e => e.Name).HasMaxLength(300);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.District).HasMaxLength(100);
+            entity.Property(e => e.Province).HasMaxLength(100);
+            entity.Property(e => e.Phone1).HasMaxLength(50);
+            entity.Property(e => e.Phone2).HasMaxLength(50);
+            entity.Property(e => e.SalesZone).HasMaxLength(50);
+            entity.Property(e => e.TaxId).HasMaxLength(50);
+            entity.Property(e => e.ShippingInfo).HasMaxLength(500);
+            entity.Property(e => e.CreditLimit).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.IsActive).HasDefaultValue(true, "DF_Customers_IsActive");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())", "DF_Customers_CreatedAt");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysdatetime())", "DF_Customers_UpdatedAt");
+        });
+
+        modelBuilder.Entity<SaleBill>(entity =>
+        {
+            entity.HasKey(e => e.SaleBillId);
+
+            entity.ToTable("SaleBills");
+
+            entity.HasIndex(e => e.BillNo, "UQ_SaleBills_BillNo").IsUnique();
+            entity.HasIndex(e => e.BillDate, "IX_SaleBills_BillDate");
+            entity.HasIndex(e => e.CustomerId, "IX_SaleBills_CustomerID");
+            entity.HasIndex(e => e.StockDocumentId, "UQ_SaleBills_StockDocumentID").IsUnique();
+
+            entity.Property(e => e.SaleBillId).HasColumnName("SaleBillID");
+            entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
+            entity.Property(e => e.StockDocumentId).HasColumnName("StockDocumentID");
+            entity.Property(e => e.BillNo).HasMaxLength(30);
+            entity.Property(e => e.CustomerName).HasMaxLength(300);
+            entity.Property(e => e.CustomerAddress).HasMaxLength(500);
+            entity.Property(e => e.CustomerDistrict).HasMaxLength(100);
+            entity.Property(e => e.CustomerProvince).HasMaxLength(100);
+            entity.Property(e => e.CustomerPhone).HasMaxLength(50);
+            entity.Property(e => e.CustomerSalesZone).HasMaxLength(50);
+            entity.Property(e => e.CustomerShippingInfo).HasMaxLength(500);
+            entity.Property(e => e.Note).HasMaxLength(500);
+            entity.Property(e => e.CreatedBy).HasMaxLength(100);
+            entity.Property(e => e.PaymentTermsDays).HasDefaultValue(30, "DF_SaleBills_PaymentTermsDays");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysdatetime())", "DF_SaleBills_CreatedAt");
+
+            entity.HasOne(d => d.Customer).WithMany(p => p.SaleBills)
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_SaleBills_Customers");
+
+            entity.HasOne(d => d.StockDocument).WithOne(p => p.SaleBill)
+                .HasForeignKey<SaleBill>(d => d.StockDocumentId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_SaleBills_StockDocuments");
+        });
+
+        modelBuilder.Entity<SaleBillLine>(entity =>
+        {
+            entity.HasKey(e => e.SaleBillLineId);
+
+            entity.ToTable("SaleBillLines");
+
+            entity.HasIndex(e => e.SaleBillId, "IX_SaleBillLines_SaleBillID");
+
+            entity.Property(e => e.SaleBillLineId).HasColumnName("SaleBillLineID");
+            entity.Property(e => e.SaleBillId).HasColumnName("SaleBillID");
+            entity.Property(e => e.Sku).HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(300);
+            entity.Property(e => e.Qty).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Unit)
+                .HasMaxLength(20)
+                .HasDefaultValue("คัน", "DF_SaleBillLines_Unit");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DiscountPerUnit).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.SortOrder).HasDefaultValue(0, "DF_SaleBillLines_SortOrder");
+
+            entity.HasOne(d => d.SaleBill).WithMany(p => p.Lines)
+                .HasForeignKey(d => d.SaleBillId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_SaleBillLines_SaleBills");
         });
 
         OnModelCreatingPartial(modelBuilder);

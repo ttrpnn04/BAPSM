@@ -1,0 +1,374 @@
+@page {
+    size: A4;
+    margin: 8mm 10mm;
+}
+
+body.print-body {
+    margin: 0;
+    font-family: "TH Sarabun New", "Sarabun", "Angsana New", "Cordia New", Tahoma, sans-serif;
+    font-size: 15px;
+    color: #111;
+    background: #e8e8e8;
+    line-height: 1.35;
+}
+
+.print-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #222;
+}
+
+.print-toolbar button {
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 14px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.doc {
+    background: #fff;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 12px auto;
+    padding: 10mm 12mm;
+    box-sizing: border-box;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Bill document (match Excel template) ── */
+
+.bill-doc {
+    border: 1.5px solid #111;
+    padding: 8mm 9mm 7mm;
+}
+
+.bill-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    gap: 12px;
+}
+
+.bill-logo {
+    height: 28mm;
+    width: auto;
+    max-width: 42mm;
+    object-fit: contain;
+}
+
+.bill-title {
+    flex: 1;
+    text-align: right;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding-top: 4mm;
+    line-height: 1.2;
+}
+
+.bill-info {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr;
+    border: 1px solid #111;
+    margin-bottom: 0;
+}
+
+.bill-customer {
+    padding: 6px 8px 8px;
+    border-right: 1px solid #111;
+}
+
+.cust-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.cust-box {
+    flex: 1;
+    background: #fff9c4;
+    border: 1px solid #e0d48a;
+    padding: 4px 6px;
+    min-height: 18mm;
+}
+
+.cust-name {
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.cust-addr {
+    font-size: 14px;
+}
+
+.cust-tel,
+.cust-ship {
+    margin-top: 4px;
+    font-size: 14px;
+}
+
+.bill-meta {
+    padding: 6px 10px 8px;
+}
+
+.meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-size: 14px;
+}
+
+.meta-val {
+    text-align: right;
+    min-width: 42%;
+}
+
+.meta-billno {
+    font-weight: 700;
+}
+
+.lbl {
+    color: #222;
+    white-space: nowrap;
+}
+
+.bill-lines {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin-top: -1px;
+}
+
+.bill-lines .col-sku { width: 12%; }
+.bill-lines .col-desc { width: 44%; }
+.bill-lines .col-qty { width: 9%; }
+.bill-lines .col-unit { width: 9%; }
+.bill-lines .col-price { width: 13%; }
+.bill-lines .col-amt { width: 13%; }
+
+.bill-lines th,
+.bill-lines td {
+    border: 1px solid #111;
+    padding: 3px 5px;
+    vertical-align: middle;
+    font-size: 14px;
+}
+
+.bill-lines th {
+    background: #f5f5f5;
+    font-weight: 700;
+    text-align: center;
+}
+
+.bill-lines .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.bill-lines .unit {
+    text-align: center;
+}
+
+.bill-lines .right {
+    text-align: right;
+}
+
+.bill-lines .empty-row td {
+    height: 20px;
+}
+
+.bill-lines .sum-row td {
+    font-weight: 600;
+    background: #fafafa;
+}
+
+.bill-bottom {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 0;
+    border: 1px solid #111;
+    border-top: 0;
+}
+
+.bill-notes {
+    padding: 8px 10px;
+    border-right: 1px solid #111;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.bill-notes .baht-text {
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+.bill-notes .policy {
+    margin-top: 6px;
+    color: #333;
+    font-size: 12.5px;
+}
+
+.bill-totals {
+    padding: 6px 0;
+}
+
+.tot-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    border-bottom: 1px solid #111;
+    font-size: 14px;
+}
+
+.tot-row:last-child {
+    border-bottom: 0;
+}
+
+.tot-val {
+    text-align: right;
+    min-width: 5.5rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.tot-grand {
+    font-weight: 700;
+    font-size: 15px;
+    background: #f7f7f7;
+}
+
+.bill-signs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 28px;
+    margin-top: 14px;
+    font-size: 14px;
+}
+
+.sign-cell .sign-date {
+    margin-top: 6px;
+    padding-left: 1.2em;
+}
+
+/* ── Box / envelope labels (unchanged structure) ── */
+
+.bill-header-grid,
+.env-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.addr,
+.ship {
+    margin-top: 2px;
+}
+
+.bill-meta div,
+.env-meta div {
+    margin-bottom: 4px;
+}
+
+.box-doc {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10mm;
+    padding-top: 6mm;
+}
+
+.box-label,
+.envelope-label {
+    border: 2px solid #111;
+    padding: 8px 10px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.box-top,
+.env-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.box-tag {
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.box-seq {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.box-sender {
+    margin-left: auto;
+}
+
+.box-phone {
+    text-align: right;
+    margin-bottom: 6px;
+}
+
+.box-name {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.box-place {
+    font-size: 18px;
+}
+
+.box-tel {
+    margin-top: 4px;
+}
+
+.box-ship {
+    margin-top: 6px;
+    font-size: 14px;
+}
+
+.envelope-label {
+    min-height: 70mm;
+}
+
+.env-customer .ship {
+    margin-top: 10px;
+}
+
+@media print {
+    body.print-body {
+        background: #fff;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .doc {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .bill-doc {
+        border-color: #000;
+    }
+
+    .box-label {
+        margin-bottom: 8mm;
+    }
+}

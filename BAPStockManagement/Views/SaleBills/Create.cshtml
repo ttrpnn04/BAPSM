@@ -1,0 +1,24 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillFormViewModel
+@{
+    ViewData["Title"] = "สร้างบิลขาย";
+}
+
+<div class="page-header">
+    <div>
+        <h1>สร้างบิลขาย</h1>
+        <p class="subtitle">เลือกร้านแล้วกรอกรายการขาย — เลขบิลสร้างอัตโนมัติ</p>
+    </div>
+</div>
+
+<form asp-action="Create" method="post" id="saleBillForm">
+    <partial name="_SaleBillForm" />
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary">บันทึกบิล</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">ยกเลิก</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <partial name="_SaleBillFormScripts" />
+}

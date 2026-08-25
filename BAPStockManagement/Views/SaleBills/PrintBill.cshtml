@@ -1,0 +1,123 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillPrintViewModel
+@{
+    Layout = "~/Views/Shared/_PrintLayout.cshtml";
+    ViewData["Title"] = $"บิล {Model.BillNo}";
+    var emptyRows = Math.Max(0, 11 - Model.Lines.Count);
+}
+
+<div class="doc bill-doc">
+    <header class="bill-top">
+        <img src="~/images/bap-logo.png" asp-append-version="true" alt="BAP" class="bill-logo" />
+        <div class="bill-title">ใบส่งสินค้า/ใบแจ้งหนี้</div>
+    </header>
+
+    <div class="bill-info">
+        <div class="bill-customer">
+            <div class="cust-row">
+                <span class="lbl">ลูกค้า :</span>
+                <div class="cust-box">
+                    <div class="cust-name">@Model.CustomerName</div>
+                    <div class="cust-addr">@Model.CustomerAddress</div>
+                    <div class="cust-addr">@Model.CustomerDistrict @Model.CustomerProvince</div>
+                </div>
+            </div>
+            <div class="cust-tel"><span class="lbl">Tel.</span> @Model.CustomerPhone</div>
+            <div class="cust-ship"><span class="lbl">ขนส่งโดย</span> @Model.CustomerShippingInfo</div>
+        </div>
+        <div class="bill-meta">
+            <div class="meta-row"><span class="lbl">วันที่</span><span class="meta-val">@Model.BillDate.ToString("dd/MM/yyyy")</span></div>
+            <div class="meta-row"><span class="lbl">เลขที่ / NO.</span><span class="meta-val meta-billno">@Model.BillNo</span></div>
+            <div class="meta-row"><span class="lbl">เขตการขาย</span><span class="meta-val">@Model.CustomerSalesZone</span></div>
+            <div class="meta-row"><span class="lbl">เงื่อนไขการชำระเงิน</span><span class="meta-val">@Model.PaymentTermsDays วัน</span></div>
+            <div class="meta-row"><span class="lbl">ครบกำหนดชำระเงิน :</span><span class="meta-val">@Model.DueDate.ToString("dd/MM/yyyy")</span></div>
+        </div>
+    </div>
+
+    <table class="bill-lines">
+        <colgroup>
+            <col class="col-sku" />
+            <col class="col-desc" />
+            <col class="col-qty" />
+            <col class="col-unit" />
+            <col class="col-price" />
+            <col class="col-amt" />
+        </colgroup>
+        <thead>
+            <tr>
+                <th>รหัสสินค้า</th>
+                <th>รายการ</th>
+                <th>จำนวน</th>
+                <th>หน่วย</th>
+                <th>ราคาต่อหน่วย</th>
+                <th>จำนวนเงิน</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var line in Model.Lines)
+            {
+                <tr>
+                    <td>@line.Sku</td>
+                    <td>@line.Description</td>
+                    <td class="num">@line.Qty.ToString("N0")</td>
+                    <td class="unit">@line.Unit</td>
+                    <td class="num">@line.UnitPrice.ToString("N2")</td>
+                    <td class="num">@line.LineAmount.ToString("N2")</td>
+                </tr>
+            }
+            @for (var i = 0; i < emptyRows; i++)
+            {
+                <tr class="empty-row">
+                    <td>&nbsp;</td>
+                    <td></td>
+                    <td></td>
+                    <td class="unit">คัน</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            }
+            <tr class="sum-row">
+                <td></td>
+                <td class="right">รวม</td>
+                <td class="num">@Model.TotalQty.ToString("N0")</td>
+                <td class="unit">คัน</td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="bill-bottom">
+        <div class="bill-notes">
+            <div><span class="lbl">หมายเหตุ</span> กรุณา สั่งจ่ายเช็คในนาม “@Model.ChequePayee” และขีดผู้ถือ</div>
+            <div>โอนเงินเข้าบัญชี @Model.BankAccountKasikorn</div>
+            <div>โอนเงินเข้าบัญชี @Model.BankAccountScb</div>
+            <div class="baht-text">(@Model.BahtText)</div>
+            <div class="policy">- ถ้าได้รับสินค้าไม่ครบตามจำนวนข้างต้น กรุณาแจ้งให้ทราบภายใน 7 วัน มิเช่นนั้นจะถือว่าได้รับสินค้าครบตามจำนวนในบิล</div>
+            <div class="policy">- สินค้าซื้อแล้วไม่รับเปลี่ยนหรือคืน</div>
+        </div>
+        <div class="bill-totals">
+            <div class="tot-row"><span>รวมเป็นเงิน</span><span class="tot-val">@Model.GrossAmount.ToString("N2")</span></div>
+            <div class="tot-row"><span>หักส่วนลด</span><span class="tot-val">@(Model.DiscountAmount > 0 ? Model.DiscountAmount.ToString("N2") : "-")</span></div>
+            <div class="tot-row tot-grand"><span>ยอดรวมทั้งสิ้น</span><span class="tot-val">@Model.NetAmount.ToString("N2")</span></div>
+        </div>
+    </div>
+
+    <div class="bill-signs">
+        <div class="sign-cell">
+            <div>ผู้จัดสินค้า________________________</div>
+            <div class="sign-date">วันที่______/_____/________</div>
+        </div>
+        <div class="sign-cell">
+            <div>ผู้ส่งสินค้า________________________</div>
+            <div class="sign-date">วันที่______/_____/________</div>
+        </div>
+        <div class="sign-cell">
+            <div>ผู้รับสินค้า________________________</div>
+            <div class="sign-date">วันที่______/_____/________</div>
+        </div>
+        <div class="sign-cell">
+            <div>ผู้อนุมัติ__________________________</div>
+            <div class="sign-date">วันที่______/_____/________</div>
+        </div>
+    </div>
+</div>

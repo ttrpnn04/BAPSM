@@ -1,6 +1,7 @@
 using BAPStockManagement.Constants;
 using BAPStockManagement.Data;
 using BAPStockManagement.Models;
+using BAPStockManagement.Services;
 using BAPStockManagement.ViewModels.Stock;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Authorization;
@@ -16,11 +17,16 @@ public class TransactionsController : Controller
 {
     private readonly BAPStockContext _context;
     private readonly UserManager<IdentityUser> _userManager;
+    private readonly SaleBillService _saleBills;
 
-    public TransactionsController(BAPStockContext context, UserManager<IdentityUser> userManager)
+    public TransactionsController(
+        BAPStockContext context,
+        UserManager<IdentityUser> userManager,
+        SaleBillService saleBills)
     {
         _context = context;
         _userManager = userManager;
+        _saleBills = saleBills;
     }
 
     public async Task<IActionResult> Index(DateOnly? fromDate, DateOnly? toDate, int? transactionTypeId, string? search, int page = 1, int pageSize = 25)
@@ -1208,7 +1214,34 @@ public class TransactionsController : Controller
             ModelState.AddModelError(string.Empty, "กรุณาระบุจำนวนชิ้นหรือกระสอบ/ลัง/เส้นอย่างน้อย 1 รายการ");
         }
 
-        if (string.IsNullOrWhiteSpace(model.RefNo))
+        var saleOutTypeId = await _saleBills.GetPrimarySaleOutTypeIdAsync();
+        var isSaleOut = saleOutTypeId.HasValue && model.TransactionTypeId == saleOutTypeId.Value;
+
+        Customer? saleCustomer = null;
+        if (isSaleOut)
+        {
+            ModelState.Remove(nameof(model.RefNo));
+            if (!model.CustomerId.HasValue)
+            {
+                ModelState.AddModelError(nameof(model.CustomerId), "กรุณาเลือกลูกค้า / ร้าน");
+            }
+            else
+            {
+                saleCustomer = await _context.Customers
+                    .FirstOrDefaultAsync(c => c.CustomerId == model.CustomerId.Value && c.IsActive);
+                if (saleCustomer == null)
+                {
+                    ModelState.AddModelError(nameof(model.CustomerId), "ไม่พบลูกค้าที่เลือก หรือร้านถูกปิดใช้งาน");
+                }
+                else
+                {
+                    model.RefNo = saleCustomer.Name.Length <= 50
+                        ? saleCustomer.Name
+                        : saleCustomer.Name[..50];
+                }
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(model.RefNo))
         {
             ModelState.AddModelError(nameof(model.RefNo), "กรุณากรอกชื่อร้าน / เลขที่อ้างอิง");
         }
@@ -1335,9 +1368,39 @@ public class TransactionsController : Controller
 
             _context.StockTransactions.AddRange(transactions);
             await _context.SaveChangesAsync();
+
+            int? saleBillId = null;
+            string? redirectUrl = null;
+            if (isSaleOut && saleCustomer != null)
+            {
+                var bill = await _saleBills.CreateFromStockDocumentAsync(
+                    document.DocumentId,
+                    saleCustomer.CustomerId,
+                    User.Identity?.Name);
+                saleBillId = bill.SaleBillId;
+                redirectUrl = Url.Action("Edit", "SaleBills", new { id = bill.SaleBillId });
+            }
+
             await dbTx.CommitAsync();
 
-            if (isAjax) return Ok(new { success = true, count = transactions.Count, documentId = document.DocumentId });
+            if (isAjax)
+            {
+                return Ok(new
+                {
+                    success = true,
+                    count = transactions.Count,
+                    documentId = document.DocumentId,
+                    saleBillId,
+                    redirectUrl
+                });
+            }
+
+            if (saleBillId.HasValue)
+            {
+                TempData["Success"] = $"ตัดสต็อกสำเร็จ และสร้างบิลขายแล้ว — กรอกราคาแล้วพิมพ์ได้";
+                return RedirectToAction("Edit", "SaleBills", new { id = saleBillId.Value });
+            }
+
             TempData["Success"] = $"บันทึกบิลสำเร็จ {transactions.Count:N0} รายการ";
             return RedirectToAction(nameof(Index));
         }
@@ -1452,6 +1515,29 @@ public class TransactionsController : Controller
 
         ViewBag.TransactionTypes = new SelectList(types, "TransactionTypeId", "TypeName");
         ViewBag.TransactionTypesList = types;
+
+        var saleOutTypeId = types
+            .Where(t => t.Direction < 0)
+            .OrderBy(t => t.TransactionTypeId)
+            .Select(t => (int?)t.TransactionTypeId)
+            .FirstOrDefault();
+        ViewBag.SaleOutTypeId = saleOutTypeId ?? 0;
+
+        var customers = await _context.Customers
+            .AsNoTracking()
+            .Where(c => c.IsActive)
+            .OrderBy(c => c.Name)
+            .Select(c => new
+            {
+                c.CustomerId,
+                Label = c.CustomerCode + " — " + c.Name +
+                        (c.District != null || c.Province != null
+                            ? " (" + ((c.District ?? "") + " " + (c.Province ?? "")).Trim() + ")"
+                            : string.Empty)
+            })
+            .ToListAsync();
+
+        ViewBag.Customers = new SelectList(customers, "CustomerId", "Label");
     }
 
     private async Task EnrichEditLinesForRedisplayAsync(EditTransactionDocumentViewModel model)

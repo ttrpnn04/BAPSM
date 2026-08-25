@@ -11,6 +11,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.Configure<SeedSuperAdminOptions>(
     builder.Configuration.GetSection(SeedSuperAdminOptions.SectionName));
 
+builder.Services.Configure<BillingOptions>(
+    builder.Configuration.GetSection(BillingOptions.SectionName));
+
+builder.Services.AddScoped<BAPStockManagement.Services.SaleBillService>();
+builder.Services.AddScoped<BAPStockManagement.Services.SaleBillExcelExporter>();
+
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddDbContext<BAPStockContext>(options =>

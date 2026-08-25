@@ -1,0 +1,119 @@
+@model BAPStockManagement.ViewModels.SaleBills.SaleBillDetailViewModel
+@{
+    ViewData["Title"] = $"บิล {Model.BillNo}";
+}
+
+<div class="page-header">
+    <div>
+        <h1>@Model.BillNo</h1>
+        <p class="subtitle">@Model.CustomerName — @Model.BillDate.ToString("dd/MM/yyyy")</p>
+    </div>
+    <div class="page-actions flex-wrap">
+        <a asp-action="DownloadExcel" asp-route-id="@Model.SaleBillId" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel me-1"></i>ดาวน์โหลด Excel (ฟอร์มเดิม)
+        </a>
+        <a asp-action="PrintBill" asp-route-id="@Model.SaleBillId" class="btn btn-outline-primary" target="_blank">
+            <i class="bi bi-printer me-1"></i>พิมพ์บิลขาย
+        </a>
+        <form asp-action="PrintBoxLabel" method="get" class="d-inline-flex align-items-center gap-1" target="_blank">
+            <input type="hidden" name="id" value="@Model.SaleBillId" />
+            <input type="number" name="count" value="5" min="1" max="30" class="form-control form-control-sm" style="width:4.5rem" title="จำนวนดวง" />
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-box-seam me-1"></i>ใบปะกล่อง
+            </button>
+        </form>
+        <a asp-action="PrintEnvelope" asp-route-id="@Model.SaleBillId" class="btn btn-outline-primary" target="_blank">
+            <i class="bi bi-envelope me-1"></i>ใบปะหน้าซอง
+        </a>
+        <a asp-action="Edit" asp-route-id="@Model.SaleBillId" class="btn btn-outline-secondary">แก้ไข</a>
+        <a asp-action="Index" class="btn btn-outline-secondary">กลับ</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-lg-6">
+        <div class="table-card p-3 h-100">
+            <div class="fw-medium mb-2">ลูกค้า</div>
+            <div>@Model.CustomerName</div>
+            <div class="text-muted small">@Model.CustomerAddress</div>
+            <div class="small">@Model.CustomerDistrict @Model.CustomerProvince</div>
+            <div class="small">Tel. @Model.CustomerPhone</div>
+            <div class="small mt-2">ขนส่ง: @Model.CustomerShippingInfo</div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="table-card p-3 h-100">
+            <div class="row g-2 small">
+                <div class="col-5 text-muted">เลขบิล</div><div class="col-7 fw-medium">@Model.BillNo</div>
+                <div class="col-5 text-muted">วันที่</div><div class="col-7">@Model.BillDate.ToString("dd/MM/yyyy")</div>
+                <div class="col-5 text-muted">เขตการขาย</div><div class="col-7">@Model.CustomerSalesZone</div>
+                <div class="col-5 text-muted">เงื่อนไขชำระ</div><div class="col-7">@Model.PaymentTermsDays วัน</div>
+                <div class="col-5 text-muted">ครบกำหนด</div><div class="col-7">@Model.DueDate.ToString("dd/MM/yyyy")</div>
+                <div class="col-5 text-muted">สร้างโดย</div><div class="col-7">@Model.CreatedBy</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-card mb-3">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>รหัส</th>
+                    <th>รายการ</th>
+                    <th class="text-end">จำนวน</th>
+                    <th>หน่วย</th>
+                    <th class="text-end">ราคา</th>
+                    <th class="text-end">ส่วนลด/หน่วย</th>
+                    <th class="text-end">จำนวนเงิน</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var line in Model.Lines)
+                {
+                    <tr>
+                        <td>@line.Sku</td>
+                        <td>@line.Description</td>
+                        <td class="text-end">@line.Qty.ToString("N0")</td>
+                        <td>@line.Unit</td>
+                        <td class="text-end">@line.UnitPrice.ToString("N2")</td>
+                        <td class="text-end">@line.DiscountPerUnit.ToString("N2")</td>
+                        <td class="text-end">@line.LineAmount.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="2" class="text-end">รวม</td>
+                    <td class="text-end fw-medium">@Model.TotalQty.ToString("N0")</td>
+                    <td colspan="3" class="text-end">รวมเป็นเงิน</td>
+                    <td class="text-end">@Model.GrossAmount.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td colspan="6" class="text-end">หักส่วนลด</td>
+                    <td class="text-end">@Model.DiscountAmount.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td colspan="6" class="text-end fw-semibold">ยอดรวมทั้งสิ้น</td>
+                    <td class="text-end fw-semibold">@Model.NetAmount.ToString("N2")</td>
+                </tr>
+                <tr>
+                    <td colspan="7" class="small text-muted">(@Model.BahtText)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Note))
+{
+    <div class="mb-3"><span class="text-muted">หมายเหตุ:</span> @Model.Note</div>
+}
+
+<form asp-action="Delete" method="post" class="d-inline"
+      onsubmit="return confirm('ยืนยันลบบิล @Model.BillNo ?');">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="id" value="@Model.SaleBillId" />
+    <button type="submit" class="btn btn-outline-danger btn-sm">ลบบิล</button>
+</form>
