@@ -5,6 +5,11 @@ namespace BAPStockManagement.Data;
 
 public static class StockDocumentSeeder
 {
+    /// <summary>
+    /// Defense-in-depth schema/data repair. Prefer <c>dotnet ef database update</c>
+    /// (migration <c>firstfix</c>) for deploy. All statements here are idempotent so
+    /// they are safe after the migration has already run.
+    /// </summary>
     public static async Task EnsureAsync(IServiceProvider services)
     {
         var context = services.GetRequiredService<BAPStockContext>();
@@ -28,6 +33,7 @@ public static class StockDocumentSeeder
 
                 CREATE INDEX IX_StockDocuments_Date ON dbo.StockDocuments (TxnDate);
                 CREATE INDEX IX_StockDocuments_RefNo ON dbo.StockDocuments (RefNo);
+                CREATE INDEX IX_StockDocuments_TransactionTypeID ON dbo.StockDocuments (TransactionTypeID);
             END
             """);
 

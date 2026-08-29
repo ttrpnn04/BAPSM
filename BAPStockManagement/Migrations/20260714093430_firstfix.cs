@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -11,85 +10,199 @@ namespace BAPStockManagement.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "SortOrder",
-                table: "Products",
-                type: "int",
-                nullable: false,
-                defaultValue: 0)
-                .Annotation("Relational:DefaultConstraintName", "DF_Products_SortOrder");
+            // Idempotent: company DBs may already have these objects from StockDocumentSeeder
+            // or from running an earlier app build before this migration existed.
+            migrationBuilder.Sql("""
+                IF COL_LENGTH(N'dbo.Products', N'SortOrder') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.Products
+                    ADD SortOrder INT NOT NULL
+                        CONSTRAINT DF_Products_SortOrder DEFAULT (0);
+                END
+                """);
 
-            migrationBuilder.CreateTable(
-                name: "StockDocuments",
-                columns: table => new
-                {
-                    DocumentID = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    TransactionTypeID = table.Column<int>(type: "int", nullable: false),
-                    TxnDate = table.Column<DateOnly>(type: "date", nullable: false, defaultValueSql: "(CONVERT([date],sysdatetime()))")
-                        .Annotation("Relational:DefaultConstraintName", "DF_StockDocuments_TxnDate"),
-                    RefNo = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    Note = table.Column<string>(type: "nvarchar(300)", maxLength: 300, nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "(sysdatetime())")
-                        .Annotation("Relational:DefaultConstraintName", "DF_StockDocuments_CreatedAt"),
-                    CreatedBy = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StockDocuments", x => x.DocumentID);
-                    table.ForeignKey(
-                        name: "FK_StockDocuments_Types",
-                        column: x => x.TransactionTypeID,
-                        principalTable: "TransactionTypes",
-                        principalColumn: "TransactionTypeID");
-                });
+            migrationBuilder.Sql("""
+                IF OBJECT_ID(N'dbo.StockDocuments', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE dbo.StockDocuments
+                    (
+                        DocumentID        BIGINT IDENTITY(1,1) NOT NULL
+                            CONSTRAINT PK_StockDocuments PRIMARY KEY,
+                        TransactionTypeID INT NOT NULL,
+                        TxnDate           DATE NOT NULL
+                            CONSTRAINT DF_StockDocuments_TxnDate
+                            DEFAULT (CONVERT(date, SYSDATETIME())),
+                        RefNo             NVARCHAR(50) NULL,
+                        Note              NVARCHAR(300) NULL,
+                        CreatedAt         DATETIME2 NOT NULL
+                            CONSTRAINT DF_StockDocuments_CreatedAt DEFAULT (SYSDATETIME()),
+                        CreatedBy         NVARCHAR(100) NULL,
+                        CONSTRAINT FK_StockDocuments_Types FOREIGN KEY (TransactionTypeID)
+                            REFERENCES dbo.TransactionTypes (TransactionTypeID)
+                    );
 
-            migrationBuilder.CreateIndex(
-                name: "IX_StockTransactions_DocumentID",
-                table: "StockTransactions",
-                column: "DocumentID");
+                    CREATE INDEX IX_StockDocuments_Date
+                        ON dbo.StockDocuments (TxnDate);
+                    CREATE INDEX IX_StockDocuments_RefNo
+                        ON dbo.StockDocuments (RefNo);
+                    CREATE INDEX IX_StockDocuments_TransactionTypeID
+                        ON dbo.StockDocuments (TransactionTypeID);
+                END
+                ELSE
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE name = N'IX_StockDocuments_TransactionTypeID'
+                          AND object_id = OBJECT_ID(N'dbo.StockDocuments')
+                    )
+                    BEGIN
+                        CREATE INDEX IX_StockDocuments_TransactionTypeID
+                            ON dbo.StockDocuments (TransactionTypeID);
+                    END
+                END
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_StockDocuments_Date",
-                table: "StockDocuments",
-                column: "TxnDate");
+            migrationBuilder.Sql("""
+                IF COL_LENGTH(N'dbo.StockTransactions', N'DocumentID') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.StockTransactions ADD DocumentID BIGINT NULL;
+                END
+                """);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_StockDocuments_RefNo",
-                table: "StockDocuments",
-                column: "RefNo");
+            // Legacy rows: one document per transaction line that still lacks DocumentID
+            migrationBuilder.Sql("""
+                DECLARE @TransactionID BIGINT;
+                DECLARE @DocumentID BIGINT;
+                DECLARE @TransactionTypeID INT;
+                DECLARE @TxnDate DATE;
+                DECLARE @RefNo NVARCHAR(50);
+                DECLARE @Note NVARCHAR(300);
+                DECLARE @CreatedAt DATETIME2;
+                DECLARE @CreatedBy NVARCHAR(100);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_StockDocuments_TransactionTypeID",
-                table: "StockDocuments",
-                column: "TransactionTypeID");
+                DECLARE orphan_cursor CURSOR LOCAL FAST_FORWARD FOR
+                    SELECT TransactionID, TransactionTypeID, TxnDate, RefNo, Note, CreatedAt, CreatedBy
+                    FROM dbo.StockTransactions
+                    WHERE DocumentID IS NULL;
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_StockTransactions_Documents",
-                table: "StockTransactions",
-                column: "DocumentID",
-                principalTable: "StockDocuments",
-                principalColumn: "DocumentID");
+                OPEN orphan_cursor;
+                FETCH NEXT FROM orphan_cursor
+                    INTO @TransactionID, @TransactionTypeID, @TxnDate, @RefNo, @Note, @CreatedAt, @CreatedBy;
+
+                WHILE @@FETCH_STATUS = 0
+                BEGIN
+                    INSERT INTO dbo.StockDocuments (TransactionTypeID, TxnDate, RefNo, Note, CreatedAt, CreatedBy)
+                    VALUES (@TransactionTypeID, @TxnDate, @RefNo, @Note, @CreatedAt, @CreatedBy);
+
+                    SET @DocumentID = SCOPE_IDENTITY();
+
+                    UPDATE dbo.StockTransactions
+                    SET DocumentID = @DocumentID
+                    WHERE TransactionID = @TransactionID;
+
+                    FETCH NEXT FROM orphan_cursor
+                        INTO @TransactionID, @TransactionTypeID, @TxnDate, @RefNo, @Note, @CreatedAt, @CreatedBy;
+                END
+
+                CLOSE orphan_cursor;
+                DEALLOCATE orphan_cursor;
+                """);
+
+            migrationBuilder.Sql("""
+                IF COL_LENGTH(N'dbo.StockTransactions', N'DocumentID') IS NOT NULL
+                   AND EXISTS (
+                        SELECT 1
+                        FROM sys.columns
+                        WHERE object_id = OBJECT_ID(N'dbo.StockTransactions')
+                          AND name = N'DocumentID'
+                          AND is_nullable = 1
+                   )
+                   AND NOT EXISTS (SELECT 1 FROM dbo.StockTransactions WHERE DocumentID IS NULL)
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE name = N'IX_StockTransactions_DocumentID'
+                          AND object_id = OBJECT_ID(N'dbo.StockTransactions')
+                    )
+                    BEGIN
+                        DROP INDEX IX_StockTransactions_DocumentID ON dbo.StockTransactions;
+                    END
+
+                    IF OBJECT_ID(N'dbo.FK_StockTransactions_Documents', N'F') IS NOT NULL
+                    BEGIN
+                        ALTER TABLE dbo.StockTransactions
+                            DROP CONSTRAINT FK_StockTransactions_Documents;
+                    END
+
+                    ALTER TABLE dbo.StockTransactions ALTER COLUMN DocumentID BIGINT NOT NULL;
+                END
+
+                IF COL_LENGTH(N'dbo.StockTransactions', N'DocumentID') IS NOT NULL
+                   AND OBJECT_ID(N'dbo.FK_StockTransactions_Documents', N'F') IS NULL
+                BEGIN
+                    ALTER TABLE dbo.StockTransactions WITH CHECK
+                    ADD CONSTRAINT FK_StockTransactions_Documents
+                        FOREIGN KEY (DocumentID) REFERENCES dbo.StockDocuments (DocumentID);
+                END
+
+                IF COL_LENGTH(N'dbo.StockTransactions', N'DocumentID') IS NOT NULL
+                   AND NOT EXISTS (
+                        SELECT 1 FROM sys.indexes
+                        WHERE name = N'IX_StockTransactions_DocumentID'
+                          AND object_id = OBJECT_ID(N'dbo.StockTransactions')
+                   )
+                BEGIN
+                    CREATE INDEX IX_StockTransactions_DocumentID
+                        ON dbo.StockTransactions (DocumentID);
+                END
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_StockTransactions_Documents",
-                table: "StockTransactions");
+            migrationBuilder.Sql("""
+                IF OBJECT_ID(N'dbo.FK_StockTransactions_Documents', N'F') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.StockTransactions
+                        DROP CONSTRAINT FK_StockTransactions_Documents;
+                END
 
-            migrationBuilder.DropTable(
-                name: "StockDocuments");
+                IF EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = N'IX_StockTransactions_DocumentID'
+                      AND object_id = OBJECT_ID(N'dbo.StockTransactions')
+                )
+                BEGIN
+                    DROP INDEX IX_StockTransactions_DocumentID ON dbo.StockTransactions;
+                END
 
-            migrationBuilder.DropIndex(
-                name: "IX_StockTransactions_DocumentID",
-                table: "StockTransactions");
+                IF COL_LENGTH(N'dbo.StockTransactions', N'DocumentID') IS NOT NULL
+                BEGIN
+                    ALTER TABLE dbo.StockTransactions DROP COLUMN DocumentID;
+                END
 
-            migrationBuilder.DropColumn(
-                name: "SortOrder",
-                table: "Products")
-                .Annotation("Relational:DefaultConstraintName", "DF_Products_SortOrder");
+                IF OBJECT_ID(N'dbo.StockDocuments', N'U') IS NOT NULL
+                BEGIN
+                    DROP TABLE dbo.StockDocuments;
+                END
+
+                IF COL_LENGTH(N'dbo.Products', N'SortOrder') IS NOT NULL
+                BEGIN
+                    DECLARE @df NVARCHAR(256);
+                    SELECT @df = dc.name
+                    FROM sys.default_constraints dc
+                    INNER JOIN sys.columns c
+                        ON c.default_object_id = dc.object_id
+                    WHERE dc.parent_object_id = OBJECT_ID(N'dbo.Products')
+                      AND c.name = N'SortOrder';
+
+                    IF @df IS NOT NULL
+                        EXEC(N'ALTER TABLE dbo.Products DROP CONSTRAINT [' + @df + N']');
+
+                    ALTER TABLE dbo.Products DROP COLUMN SortOrder;
+                END
+                """);
         }
     }
 }
